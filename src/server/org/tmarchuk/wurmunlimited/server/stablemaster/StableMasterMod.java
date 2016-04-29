@@ -7,7 +7,7 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.BehaviourList;
 import com.wurmonline.server.items.ItemTemplateFactory;
-import com.wurmonline.server.items.ItemTypes;
+import static com.wurmonline.server.items.ItemTypes.*;
 import com.wurmonline.shared.constants.ItemMaterials;
 import com.wurmonline.server.MiscConstants;
 
@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerStartedListener, ItemTemplatesCreatedListener, ItemTypes, MiscConstants
+public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerStartedListener, ItemTemplatesCreatedListener
 {
 	private static final Logger logger = Logger.getLogger(StableMasterMod.class.getName());
 	
@@ -47,13 +47,27 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	private int horseRedemptionTokenCentimetersX = 20;
 	private int horseRedemptionTokenCentimetersY = 50;
 	private int horseRedemptionTokenCentimetersZ = 200;
-	private int horseRedemptionTokenWeightGrams = 50000;
+	private int horseRedemptionTokenMinimumWeightGrams = 50000;
 
 	public static void logException(String msg, Throwable e)
 	{
 		if (logger != null)
 			logger.log(Level.SEVERE, msg, e);
 	}
+
+	// TODO: Configuration.
+	
+	@Override
+	public void preInit() 
+	{
+		ModActions.init();
+	}
+
+	@Override
+	public void init() 
+	{
+	}
+
 	@Override
 	public void onItemTemplatesCreated() 
 	{
@@ -62,12 +76,14 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 		{
 			this.horseRedemptionTokenId = IdFactory.getIdFor(HORSE_REDEMPTION_TOKEN_IDENTIFIER, IdType.ITEMTEMPLATE);
 		}
+		logger.log(Level.INFO, "Creating Horse Redemption Token item template with ID: " + 
+				this.horseRedemptionTokenId + ".");
 
 		try
 		{
 			short [] horseRedemptionTokenItemTypes = new short[] 
 				{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
-					ITEM_TYPE_NODROP, ITEM_TYPE_TEMPORARY, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
+					ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
 					ITEM_TYPE_FLOATING, ITEM_TYPE_NOTRADE, ITEM_TYPE_SERVERBOUND, ITEM_TYPE_NAMED,
 					ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, ITEM_TYPE_TRANSPORTABLE,
 					ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
@@ -80,9 +96,10 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 					horseRedemptionTokenItemTypes, HORSE_REDEMPTION_TOKEN_IMAGE_NUMBER, 
 					BehaviourList.itemBehaviour, 0, Long.MAX_VALUE, 
 					horseRedemptionTokenCentimetersX, horseRedemptionTokenCentimetersY, 
-					horseRedemptionTokenCentimetersZ, (int) NOID, EMPTY_BYTE_PRIMITIVE_ARRAY, 
+					horseRedemptionTokenCentimetersZ, (int) MiscConstants.NOID, 
+					MiscConstants.EMPTY_BYTE_PRIMITIVE_ARRAY, 
 					"model.writ.", HORSE_REDEMPTION_TOKEN_DIFFICULTY, 
-					horseRedemptionTokenWeightGrams, ItemMaterials.MATERIAL_PAPER, 
+					horseRedemptionTokenMinimumWeightGrams, ItemMaterials.MATERIAL_PAPER, 
 					HORSE_REDEMPTION_TOKEN_VALUE, HORSE_REDEMPTION_TOKEN_IS_PURCHASED,
 					HORSE_REDEMPTION_TOKEN_ARMOR_TYPE);
        
@@ -97,18 +114,8 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	public void onServerStarted()
 	{
 		logger.log(Level.INFO, "Registering exchange/redeem actions.");
-		ModActions.registerAction(new ExchangeAction());
+		ModActions.registerAction(new ExchangeAction(horseRedemptionTokenId));
 		ModActions.registerAction(new RedeemAction());
 	}
 
-	@Override
-	public void init() 
-	{
-	}
-	
-	@Override
-	public void preInit() 
-	{
-		ModActions.init();
-	}
 }
