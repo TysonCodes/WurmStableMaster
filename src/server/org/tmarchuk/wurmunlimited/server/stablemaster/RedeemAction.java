@@ -8,8 +8,12 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
 import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
 import com.wurmonline.server.creatures.Creature;
+import com.wurmonline.server.creatures.CreaturePos;
+import com.wurmonline.server.creatures.CreatureStatus;
+import com.wurmonline.server.creatures.Creatures;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.players.Player;
+import com.wurmonline.server.Items;
 
 // From Ago's modloader
 import org.gotti.wurmunlimited.modsupport.actions.ActionPerformer;
@@ -26,14 +30,24 @@ import java.util.logging.Logger;
 public class RedeemAction implements ModAction, BehaviourProvider, ActionPerformer
 {
 	private static Logger logger = Logger.getLogger(RedeemAction.class.getName());
+
+	// Constants
+	
+	// Configuration
+	private final int horseRedemptionTokenId;
+	
+	// Action data
 	private final short actionId;
 	private final ActionEntry actionEntry;
-	private final int HORSE_REDEMPTION_TOKEN_TEMPLATE_ID = 20002;	// TODO: Get this from  item class.
+	
+	// Creature handling
+	private CreatureHelper cHelper = new CreatureHelper();
 
-	public RedeemAction() 
+	public RedeemAction(int horseRedemptionTokenId) 
 	{
+		this.horseRedemptionTokenId = horseRedemptionTokenId;
 		actionId = (short) ModActions.getNextActionId();
-		actionEntry = ActionEntry.createEntry(actionId, "Redeem Mount Token", "redeeming", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */});
+		actionEntry = ActionEntry.createEntry(actionId, "Redeem mount token", "redeeming", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */});
 		ModActions.registerAction(actionEntry);
 	}
 
@@ -52,7 +66,7 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	{
 		// TODO: Probably need a bunch more checks to make sure it's not redeemed while in a boat or swimming or something for example.
 		if ((performer instanceof Player) && 
-				((target.getTemplateId() == HORSE_REDEMPTION_TOKEN_TEMPLATE_ID))) 
+				((target.getTemplateId() == horseRedemptionTokenId))) 
 		{
 			return Arrays.asList(actionEntry);
 		} 
@@ -84,9 +98,23 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	{
 		try 
 		{
+			Creature theHorse = Creatures.getInstance().getCreature(target.getData());
+
+			// Set the location to the current player location.
+			CreaturePos performerPos = performer.getStatus().getPosition();
+			CreatureStatus horseStatus = theHorse.getStatus();
+			horseStatus.setPositionXYZ(performerPos.getPosX(), performerPos.getPosY(), 
+					performerPos.getPosZ());
+			horseStatus.getPosition().setZoneId(performerPos.getZoneId());
+			
+			// Restore horse to world.
+			cHelper.showCreature(theHorse);
+
+			// Delete redemption token from player's inventory.
+			Items.destroyItem(target.getWurmId());
+
+			// Inform the player.
 			performer.getCommunicator().sendNormalServerMessage("You redeem your horse token for a horse!" );
-			// TODO: Delete redemption token from player's inventory.
-			// TODO: Restore horse to world.
 			return true;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage(), e);

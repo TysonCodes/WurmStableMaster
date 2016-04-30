@@ -39,11 +39,14 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	private final short actionId;
 	private final ActionEntry actionEntry;
 
+	// Creature handling
+	private CreatureHelper cHelper = new CreatureHelper();
+
 	public ExchangeAction(int horseRedemptionTokenId) 
 	{
 		this.horseRedemptionTokenId = horseRedemptionTokenId;
 		actionId = (short) ModActions.getNextActionId();
-		actionEntry = ActionEntry.createEntry(actionId, "Exchange Mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
+		actionEntry = ActionEntry.createEntry(actionId, "Exchange mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
 		ModActions.registerAction(actionEntry);
 	}
 
@@ -108,7 +111,8 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			// Add token to player's inventory.
 			performer.getInventory().insertItem(redemptionToken, true);
 			
-			// TODO: Remove horse from world.
+			// Remove horse from world.
+			cHelper.hideCreature(target);
 
 			// Let the player know.
 			performer.getCommunicator().sendNormalServerMessage("You exchange your horse with the stable master for a redemption token." );

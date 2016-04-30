@@ -114,8 +114,9 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	public void onServerStarted()
 	{
 		logger.log(Level.INFO, "Registering exchange/redeem actions.");
+		logger.log(Level.INFO, "horseRedemptionTokenId = " + horseRedemptionTokenId);
 		ModActions.registerAction(new ExchangeAction(horseRedemptionTokenId));
-		ModActions.registerAction(new RedeemAction());
+		ModActions.registerAction(new RedeemAction(horseRedemptionTokenId));
 	}
 
 }
