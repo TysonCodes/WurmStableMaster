@@ -34,10 +34,10 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	
 	// Constants
 	private static final int HORSE_TEMPLATE_ID = 64;
-	private static final float HORSE_REDEMPTION_TOKEN_QUALITY = 100.0f;
+	private static final float MOUNT_TOKEN_QUALITY = 100.0f;
 	
 	// Configuration
-	private final int horseRedemptionTokenId;
+	private final int mountTokenId;
 	private final int stableMasterId;
 	
 	// Action data
@@ -47,9 +47,9 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	// Creature handling
 	private CreatureHelper cHelper = new CreatureHelper();
 
-	public ExchangeAction(int horseRedemptionTokenId, int stableMasterId) 
+	public ExchangeAction(int mountTokenId, int stableMasterId) 
 	{
-		this.horseRedemptionTokenId = horseRedemptionTokenId;
+		this.mountTokenId = mountTokenId;
 		this.stableMasterId = stableMasterId;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, "Exchange mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
@@ -150,11 +150,11 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
         
         try 
 		{
-			// Create new redemption token from horse.
-			Item redemptionToken = ItemFactory.createItem(horseRedemptionTokenId, 
-					HORSE_REDEMPTION_TOKEN_QUALITY, performer.getName());
-			redemptionToken.setDescription(getHorseDescription(mount));
-			redemptionToken.setName(getHorseName(mount));
+			// Create new redemption token from mount.
+			Item redemptionToken = ItemFactory.createItem(mountTokenId, 
+					MOUNT_TOKEN_QUALITY, performer.getName());
+			redemptionToken.setDescription(getMountDescription(mount));
+			redemptionToken.setName(getMountName(mount));
 			redemptionToken.setData(mount.getWurmId());
 			redemptionToken.setWeight((int)Math.min(redemptionToken.getTemplate().getWeightGrams(), mount.getStatus().getBody().getWeight(mount.getStatus().fat)), false);
 			redemptionToken.setLastOwnerId(performer.getWurmId());
@@ -163,11 +163,11 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			// Add token to player's inventory.
 			performer.getInventory().insertItem(redemptionToken, true);
 			
-			// Remove horse from world.
+			// Remove mount from world.
 			cHelper.hideCreature(mount);
 
 			// Let the player know.
-			performer.getCommunicator().sendNormalServerMessage("You exchange your horse with the stable master for a redemption token." );
+			performer.getCommunicator().sendNormalServerMessage("You exchange your mount with the stable master for a mount token." );
 			return true;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage(), e);
@@ -182,7 +182,7 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 		return action(action, performer, target, num, counter);
 	}
 
-	private String getHorseDescription(Creature target)
+	private String getMountDescription(Creature target)
 	{
 		String toReturn = target.getStatus().getAgeString().toLowerCase() + " ";
         if(target.getTemplate().getTemplateId() == HORSE_TEMPLATE_ID) 
@@ -215,9 +215,9 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
         return toReturn;
 	}
 
-	private String getHorseName(Creature target)
+	private String getMountName(Creature target)
 	{
-		String toReturn = "horse redemption token";
+		String toReturn = "mount token";
         return toReturn;
 	}
 }

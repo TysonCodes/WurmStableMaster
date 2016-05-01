@@ -34,7 +34,7 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	// Constants
 	
 	// Configuration
-	private final int horseRedemptionTokenId;
+	private final int mountTokenId;
 	
 	// Action data
 	private final short actionId;
@@ -43,9 +43,9 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	// Creature handling
 	private CreatureHelper cHelper = new CreatureHelper();
 
-	public RedeemAction(int horseRedemptionTokenId) 
+	public RedeemAction(int mountTokenId) 
 	{
-		this.horseRedemptionTokenId = horseRedemptionTokenId;
+		this.mountTokenId = mountTokenId;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, "Redeem mount token", "redeeming", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */});
 		ModActions.registerAction(actionEntry);
@@ -66,7 +66,7 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	{
 		// TODO: Probably need a bunch more checks to make sure it's not redeemed while in a boat or swimming or something for example.
 		if ((performer instanceof Player) && 
-				((target.getTemplateId() == horseRedemptionTokenId))) 
+				((target.getTemplateId() == mountTokenId))) 
 		{
 			return Arrays.asList(actionEntry);
 		} 
@@ -98,23 +98,23 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	{
 		try 
 		{
-			Creature theHorse = Creatures.getInstance().getCreature(target.getData());
+			Creature theMount = Creatures.getInstance().getCreature(target.getData());
 
 			// Set the location to the current player location.
 			CreaturePos performerPos = performer.getStatus().getPosition();
-			CreatureStatus horseStatus = theHorse.getStatus();
-			horseStatus.setPositionXYZ(performerPos.getPosX(), performerPos.getPosY(), 
+			CreatureStatus mountStatus = theMount.getStatus();
+			mountStatus.setPositionXYZ(performerPos.getPosX(), performerPos.getPosY(), 
 					performerPos.getPosZ());
-			horseStatus.getPosition().setZoneId(performerPos.getZoneId());
+			mountStatus.getPosition().setZoneId(performerPos.getZoneId());
 			
-			// Restore horse to world.
-			cHelper.showCreature(theHorse);
+			// Restore mount to world.
+			cHelper.showCreature(theMount);
 
 			// Delete redemption token from player's inventory.
 			Items.destroyItem(target.getWurmId());
 
 			// Inform the player.
-			performer.getCommunicator().sendNormalServerMessage("You redeem your horse token for a horse!" );
+			performer.getCommunicator().sendNormalServerMessage("You redeem your mount token for a mount!" );
 			return true;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage(), e);

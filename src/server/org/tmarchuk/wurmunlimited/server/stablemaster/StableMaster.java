@@ -36,7 +36,7 @@ public class StableMaster implements CreatureTypes
 
 	// Simple parameters for the template
 	private final String tName = "Stable master";
-	private final String tDescription = "An expert with horses and other mounts. Able to help load mounts on ships.";
+	private final String tDescription = "An expert with mounts. Able to help load mounts on ships.";
 	private final String tModelName = "model.creature.humanoid.human.salesman";
 	private final short tVisionTiles = 2;	// How  many tiles away it can see.
 	private final byte tSex = 0;			// I don't understand. This appears to be male but female can be spawned...

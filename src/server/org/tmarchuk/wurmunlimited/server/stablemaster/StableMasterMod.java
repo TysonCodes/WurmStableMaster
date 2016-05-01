@@ -37,23 +37,23 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	private static final Logger logger = Logger.getLogger(StableMasterMod.class.getName());
 	
 	// Constants
-	private static final String HORSE_REDEMPTION_TOKEN_IDENTIFIER = "horseRedemptionToken";
-	private static final int HORSE_REDEMPTION_TOKEN_SIZE = 3;	// Normal as compared to 1 = tiny, 2 = small, 4 = large, 5 = huge
-	private static final short HORSE_REDEMPTION_TOKEN_IMAGE_NUMBER = 321; // Piece of paper.
-	private static final float HORSE_REDEMPTION_TOKEN_DIFFICULTY = 1.0f;
-	private static final int HORSE_REDEMPTION_TOKEN_VALUE = 0;
-	private static final boolean HORSE_REDEMPTION_TOKEN_IS_PURCHASED = false;
-	private static final int HORSE_REDEMPTION_TOKEN_ARMOR_TYPE = -1;
+	private static final String MOUNT_TOKEN_IDENTIFIER = "mountToken";
+	private static final int MOUNT_TOKEN_SIZE = 3;	// Normal as compared to 1 = tiny, 2 = small, 4 = large, 5 = huge
+	private static final short MOUNT_TOKEN_IMAGE_NUMBER = 321; // Piece of paper.
+	private static final float MOUNT_TOKEN_DIFFICULTY = 1.0f;
+	private static final int MOUNT_TOKEN_VALUE = 0;
+	private static final boolean MOUNT_TOKEN_IS_PURCHASED = false;
+	private static final int MOUNT_TOKEN_ARMOR_TYPE = -1;
 	
 	// Configuration values
 	private static boolean specifyStableMasterId = false;
 	private static int stableMasterId = 20001;
-	private boolean specifyHorseRedemptionTokenId = false;
-	private int horseRedemptionTokenId = 20002;
-	private int horseRedemptionTokenCentimetersX = 20;
-	private int horseRedemptionTokenCentimetersY = 50;
-	private int horseRedemptionTokenCentimetersZ = 200;
-	private int horseRedemptionTokenMinimumWeightGrams = 50000;
+	private boolean specifyMountTokenId = false;
+	private int mountTokenId = 20002;
+	private int mountTokenCentimetersX = 20;
+	private int mountTokenCentimetersY = 50;
+	private int mountTokenCentimetersZ = 200;
+	private int mountTokenMinimumWeightGrams = 50000;
 	
 	// Stable master template creater
 	private static StableMaster stableMasterTemplateCreator = null;
@@ -116,16 +116,16 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	public void onItemTemplatesCreated() 
 	{
 		// Create Horse Redemption Token Item Template.
-		if (!this.specifyHorseRedemptionTokenId)
+		if (!this.specifyMountTokenId)
 		{
-			this.horseRedemptionTokenId = IdFactory.getIdFor(HORSE_REDEMPTION_TOKEN_IDENTIFIER, IdType.ITEMTEMPLATE);
+			this.mountTokenId = IdFactory.getIdFor(MOUNT_TOKEN_IDENTIFIER, IdType.ITEMTEMPLATE);
 		}
-		logger.log(Level.INFO, "Creating Horse Redemption Token item template with ID: " + 
-				this.horseRedemptionTokenId + ".");
+		logger.log(Level.INFO, "Creating Mount Token item template with ID: " + 
+				this.mountTokenId + ".");
 
 		try
 		{
-			short [] horseRedemptionTokenItemTypes = new short[] 
+			short [] mountTokenItemTypes = new short[] 
 				{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
 					ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
 					ITEM_TYPE_FLOATING, ITEM_TYPE_NOTRADE, ITEM_TYPE_SERVERBOUND, ITEM_TYPE_NAMED,
@@ -133,23 +133,23 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 					ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
 				};
 			ItemTemplateFactory.getInstance().createItemTemplate(
-					horseRedemptionTokenId, HORSE_REDEMPTION_TOKEN_SIZE, 
-					"horse redemption token", "horse redemption tokens", 
+					mountTokenId, MOUNT_TOKEN_SIZE, 
+					"mount token", "mount tokens", 
 					"excellent", "good", "ok", "poor", 
-					"A token to reclaim your horse from the stable master.", 
-					horseRedemptionTokenItemTypes, HORSE_REDEMPTION_TOKEN_IMAGE_NUMBER, 
+					"A token to reclaim your mount from the stable master.", 
+					mountTokenItemTypes, MOUNT_TOKEN_IMAGE_NUMBER, 
 					BehaviourList.itemBehaviour, 0, Long.MAX_VALUE, 
-					horseRedemptionTokenCentimetersX, horseRedemptionTokenCentimetersY, 
-					horseRedemptionTokenCentimetersZ, (int) MiscConstants.NOID, 
+					mountTokenCentimetersX, mountTokenCentimetersY, 
+					mountTokenCentimetersZ, (int) MiscConstants.NOID, 
 					MiscConstants.EMPTY_BYTE_PRIMITIVE_ARRAY, 
-					"model.writ.", HORSE_REDEMPTION_TOKEN_DIFFICULTY, 
-					horseRedemptionTokenMinimumWeightGrams, ItemMaterials.MATERIAL_PAPER, 
-					HORSE_REDEMPTION_TOKEN_VALUE, HORSE_REDEMPTION_TOKEN_IS_PURCHASED,
-					HORSE_REDEMPTION_TOKEN_ARMOR_TYPE);
+					"model.writ.", MOUNT_TOKEN_DIFFICULTY, 
+					mountTokenMinimumWeightGrams, ItemMaterials.MATERIAL_PAPER, 
+					MOUNT_TOKEN_VALUE, MOUNT_TOKEN_IS_PURCHASED,
+					MOUNT_TOKEN_ARMOR_TYPE);
        
 		} catch (IOException ioEx)
 		{
-			logException("Failed to create Horse Redemption Token item template.", ioEx);
+			logException("Failed to create Mount Token item template.", ioEx);
             throw new RuntimeException(ioEx);
 		}
 	}
@@ -158,10 +158,10 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	public void onServerStarted()
 	{
 		logger.log(Level.INFO, "Registering exchange/redeem actions.");
-		logger.log(Level.INFO, "horseRedemptionTokenId = " + horseRedemptionTokenId);
+		logger.log(Level.INFO, "mountTokenId = " + mountTokenId);
 		logger.log(Level.INFO, "stableMasterId = " + stableMasterId);
-		ModActions.registerAction(new ExchangeAction(horseRedemptionTokenId, stableMasterId));
-		ModActions.registerAction(new RedeemAction(horseRedemptionTokenId));
+		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId));
+		ModActions.registerAction(new RedeemAction(mountTokenId));
 	}
 
 }
