@@ -101,6 +101,7 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 								
 								// Create a new creature template for the stable master.
 								stableMasterTemplateCreator = new StableMaster(specifyStableMasterId, stableMasterId);
+								stableMasterId = stableMasterTemplateCreator.getTemplateId();
 								stableMasterTemplateCreator.onItemTemplatesCreated();
 								
 								return result;
@@ -158,7 +159,8 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	{
 		logger.log(Level.INFO, "Registering exchange/redeem actions.");
 		logger.log(Level.INFO, "horseRedemptionTokenId = " + horseRedemptionTokenId);
-		ModActions.registerAction(new ExchangeAction(horseRedemptionTokenId));
+		logger.log(Level.INFO, "stableMasterId = " + stableMasterId);
+		ModActions.registerAction(new ExchangeAction(horseRedemptionTokenId, stableMasterId));
 		ModActions.registerAction(new RedeemAction(horseRedemptionTokenId));
 	}
 

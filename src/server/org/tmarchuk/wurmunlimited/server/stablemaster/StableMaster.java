@@ -100,6 +100,11 @@ public class StableMaster implements CreatureTypes
 			throw new RuntimeException(e);
 		}
 	}
+	
+	public int getTemplateId()
+	{
+		return this.stableMasterTemplateId;
+	}
 
 	private CreatureTemplate createCreatureTemplate(final int id, final String name, final String longDesc, final String modelName, final int[] types, final byte bodyType, final Skills skills, final short vision, final byte sex, final short centimetersHigh, final short centimetersLong,
 			final short centimetersWide, final String deathSndMale, final String deathSndFemale, final String hitSndMale, final String hitSndFemale, final float naturalArmour, final float handDam, final float kickDam, final float biteDam, final float headDam, final float breathDam,

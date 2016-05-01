@@ -165,10 +165,10 @@ public class CreatureHelper
 		// Clean up the creature's view of the world (as it's not in it anymore.)
 		creat.destroyVisionArea();
 
-		// Destroy the vehicle related portions of the creature if any.
+		// Get rid of the rider of the creature if any.
 		if (creat.isVehicle())
 		{
-			Vehicles.destroyVehicle(creat.getWurmId());
+			Vehicles.getVehicle(creat).kickAll();
 		}
 		
 		// Remove the creature from the various lists that track numbers of creatures
@@ -233,6 +233,19 @@ public class CreatureHelper
 		// addCreatures(), part of which is called even for dead creatures.
 		allCreatures.removeCreature(creat);
 		callPrivateMethod(allCreatures, addCreature, creat, false);
+		
+		// Recreate the vision area for the creature we destroyed when hiding it.
+		try
+		{
+			if (creat.getVisionArea() == null)
+			{
+				creat.createVisionArea();
+			}
+		} catch (Exception e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	// Helpers to work with private methods/fields.

@@ -7,7 +7,11 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
+import com.wurmonline.server.behaviours.Vehicle;
+import com.wurmonline.server.behaviours.Vehicles;
 import com.wurmonline.server.creatures.Creature;
+import com.wurmonline.server.creatures.Creatures;
+import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemFactory;
 import com.wurmonline.server.players.Player;
@@ -34,6 +38,7 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	
 	// Configuration
 	private final int horseRedemptionTokenId;
+	private final int stableMasterId;
 	
 	// Action data
 	private final short actionId;
@@ -42,9 +47,10 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	// Creature handling
 	private CreatureHelper cHelper = new CreatureHelper();
 
-	public ExchangeAction(int horseRedemptionTokenId) 
+	public ExchangeAction(int horseRedemptionTokenId, int stableMasterId) 
 	{
 		this.horseRedemptionTokenId = horseRedemptionTokenId;
+		this.stableMasterId = stableMasterId;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, "Exchange mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
 		ModActions.registerAction(actionEntry);
@@ -75,6 +81,20 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 		{
 			return Arrays.asList(actionEntry);
 		} 
+		if ((performer instanceof Player) &&
+			(target.getTemplate().getTemplateId() == stableMasterId) && 
+			performer.isVehicleCommander())
+		{
+			Vehicle pVehicle = Vehicles.getVehicleForId(performer.getVehicle());
+			if (pVehicle.isCreature())
+			{
+				return Arrays.asList(actionEntry);
+			}
+			else 
+			{
+				return null;
+			}
+		}
 		else 
 		{
 			return null;
@@ -96,23 +116,55 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
             return true;
         }
 
+        // Get the creature we're trying to exchange. For now if using the Stable Master this needs to be
+        // ridden. If this is a mount and we're configured to allow NPC-less control then let it go ahead.
+        Creature mount = null;
+		if ((target.getTemplate().getTemplateId() == stableMasterId) && performer.isVehicleCommander())
+		{
+			Vehicle pVehicle = Vehicles.getVehicleForId(performer.getVehicle());
+			if (pVehicle.isCreature())
+			{
+				try
+				{
+					mount = Creatures.getInstance().getCreature(performer.getVehicle());
+				} catch (NoSuchCreatureException e)
+				{
+					logger.log(Level.WARNING, "Attempted to get mount Creature object and failed. " + e.getMessage(), e);
+				}
+                
+			}
+		}
+
+		// TODO: Add checks for more mount types and configuration to turn off for servers that want to
+		// require an NPC.
+		if (target.isHorse())
+        {
+			mount = target;
+        }
+		
+		if (mount == null)
+		{
+        	performer.getCommunicator().sendNormalServerMessage("Nothing to exchange!");
+			return true;
+		}
+        
         try 
 		{
 			// Create new redemption token from horse.
 			Item redemptionToken = ItemFactory.createItem(horseRedemptionTokenId, 
 					HORSE_REDEMPTION_TOKEN_QUALITY, performer.getName());
-			redemptionToken.setDescription(getHorseDescription(target));
-			redemptionToken.setName(getHorseName(target));
-			redemptionToken.setData(target.getWurmId());
-			redemptionToken.setWeight((int)Math.min(redemptionToken.getTemplate().getWeightGrams(), target.getStatus().getBody().getWeight(target.getStatus().fat)), false);
+			redemptionToken.setDescription(getHorseDescription(mount));
+			redemptionToken.setName(getHorseName(mount));
+			redemptionToken.setData(mount.getWurmId());
+			redemptionToken.setWeight((int)Math.min(redemptionToken.getTemplate().getWeightGrams(), mount.getStatus().getBody().getWeight(mount.getStatus().fat)), false);
 			redemptionToken.setLastOwnerId(performer.getWurmId());
-			redemptionToken.setFemale(target.getSex() == 1);
+			redemptionToken.setFemale(mount.getSex() == 1);
 
 			// Add token to player's inventory.
 			performer.getInventory().insertItem(redemptionToken, true);
 			
 			// Remove horse from world.
-			cHelper.hideCreature(target);
+			cHelper.hideCreature(mount);
 
 			// Let the player know.
 			performer.getCommunicator().sendNormalServerMessage("You exchange your horse with the stable master for a redemption token." );
