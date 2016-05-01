@@ -4,14 +4,18 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
  * Created by Tyson Marchuk on 2016-04-27.
  */
 
+// From Wurm Common
+import com.wurmonline.shared.constants.ItemMaterials;
+
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.BehaviourList;
 import com.wurmonline.server.items.ItemTemplateFactory;
 import static com.wurmonline.server.items.ItemTypes.*;
-import com.wurmonline.shared.constants.ItemMaterials;
 import com.wurmonline.server.MiscConstants;
 
 // From Ago's modloader
+import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
+import org.gotti.wurmunlimited.modloader.classhooks.InvocationHandlerFactory;
 import org.gotti.wurmunlimited.modloader.interfaces.Initable;
 import org.gotti.wurmunlimited.modloader.interfaces.ItemTemplatesCreatedListener;
 import org.gotti.wurmunlimited.modloader.interfaces.PreInitable;
@@ -23,6 +27,8 @@ import org.gotti.wurmunlimited.modsupport.actions.ModActions;
 
 // Base Java
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,14 +46,17 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	private static final int HORSE_REDEMPTION_TOKEN_ARMOR_TYPE = -1;
 	
 	// Configuration values
-	private boolean specifyStableMasterId = false;
-	private int stableMasterId = 20001;
+	private static boolean specifyStableMasterId = false;
+	private static int stableMasterId = 20001;
 	private boolean specifyHorseRedemptionTokenId = false;
 	private int horseRedemptionTokenId = 20002;
 	private int horseRedemptionTokenCentimetersX = 20;
 	private int horseRedemptionTokenCentimetersY = 50;
 	private int horseRedemptionTokenCentimetersZ = 200;
 	private int horseRedemptionTokenMinimumWeightGrams = 50000;
+	
+	// Stable master template creater
+	private static StableMaster stableMasterTemplateCreator = null;
 
 	public static void logException(String msg, Throwable e)
 	{
@@ -66,6 +75,40 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	@Override
 	public void init() 
 	{
+		logger.log(Level.INFO, "Registering stable master template");
+
+		// Unfortunately it looks like the ModCreatures support in Ago's loader does a lot more
+		// than just add the new creature. I think the problems people are seeing with breeding
+		// horses with the previous creatures mod have something to do with these changes but 
+		// I don't have time to figure them out and fix them now and there doesn't seem to be an
+		// easy way to disable the traits modification and such in the mod loader. So for now 
+		// I'm loading this new NPC the direct way.
+		// com.wurmonline.server.creatures.CreatureTemplateCreator.createCreatureTemplates()
+        HookManager.getInstance().registerHook(
+                "com.wurmonline.server.creatures.CreatureTemplateCreator", 
+                "createCreatureTemplates", "()V", new InvocationHandlerFactory()
+                {
+                    @Override
+                    public InvocationHandler createInvocationHandler()
+                    {
+                        return new InvocationHandler()
+                        {
+                            @Override
+                            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+                            {
+                            	// Call the original function to add normal creatures.
+								Object result = method.invoke(proxy, args);
+								
+								// Create a new creature template for the stable master.
+								stableMasterTemplateCreator = new StableMaster(specifyStableMasterId, stableMasterId);
+								stableMasterTemplateCreator.onItemTemplatesCreated();
+								
+								return result;
+                            }
+                        };
+                    }
+                });
+	
 	}
 
 	@Override
