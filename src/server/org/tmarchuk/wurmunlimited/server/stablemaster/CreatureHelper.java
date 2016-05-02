@@ -90,7 +90,7 @@ public class CreatureHelper
 	// Really this is only meant to work on horses for now. A lot of other things that
 	// Creature.die() does have been removed because they don't apply to a horse but
 	// they may apply to a player or another creature. Use with caution...
-	public void hideCreature(Creature creat)
+	public static void hideCreature(Creature creat)
 	{
 		Creatures allCreatures = Creatures.getInstance();
 		CreatureStatus cStatus = creat.getStatus();
@@ -222,7 +222,7 @@ public class CreatureHelper
 	// Really this is only meant to work on horses for now. A lot of other things that
 	// Creature.die() does weren't done in hideCreature() so they might be in a weird 
 	// state. I doubt this will work for players. Use with caution...
-	public void showCreature(Creature creat)
+	public static void showCreature(Creature creat)
 	{
 		Creatures allCreatures = Creatures.getInstance();
 		
@@ -250,7 +250,7 @@ public class CreatureHelper
 	
 	// Helpers to work with private methods/fields.
 	// ============================================
-	private <T> T callPrivateMethod(Object obj, Method method, Object... args) 
+	private static <T> T callPrivateMethod(Object obj, Method method, Object... args) 
 	{
 		try 
 		{
@@ -261,7 +261,7 @@ public class CreatureHelper
 		}
 	}
 	
-	private void subtractOneFromInt(Object obj, Field field)
+	private static void subtractOneFromInt(Object obj, Field field)
 	{
 		try
 		{
@@ -279,14 +279,14 @@ public class CreatureHelper
 	
 	// CreatureStatus
 	// --------------
-	private void setDead(CreatureStatus cStatus, boolean isDead)
+	private static void setDead(CreatureStatus cStatus, boolean isDead)
 	{
 		callPrivateMethod(cStatus, setDead, isDead);
 	}
 	
 	// CombatHandler
 	// -------------
-	private void clearMoveStack(CombatHandler cHandler)
+	private static void clearMoveStack(CombatHandler cHandler)
 	{
 		callPrivateMethod(cHandler, clearMoveStack);
 	}

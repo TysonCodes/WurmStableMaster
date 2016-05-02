@@ -40,9 +40,6 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	private final short actionId;
 	private final ActionEntry actionEntry;
 	
-	// Creature handling
-	private CreatureHelper cHelper = new CreatureHelper();
-
 	public RedeemAction(int mountTokenId) 
 	{
 		this.mountTokenId = mountTokenId;
@@ -108,7 +105,7 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 			mountStatus.getPosition().setZoneId(performerPos.getZoneId());
 			
 			// Restore mount to world.
-			cHelper.showCreature(theMount);
+			CreatureHelper.showCreature(theMount);
 
 			// Delete redemption token from player's inventory.
 			Items.destroyItem(target.getWurmId());

@@ -15,6 +15,7 @@ import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemFactory;
 import com.wurmonline.server.players.Player;
+import com.wurmonline.server.questions.ExchangeMountQuestion;
 
 // From Ago's modloader
 import org.gotti.wurmunlimited.modsupport.actions.ActionPerformer;
@@ -37,20 +38,19 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	private static final float MOUNT_TOKEN_QUALITY = 100.0f;
 	
 	// Configuration
-	private final int mountTokenId;
+	private static int mountTokenId;
 	private final int stableMasterId;
+	private final int exchangeMountCostIrons;
 	
 	// Action data
 	private final short actionId;
 	private final ActionEntry actionEntry;
 
-	// Creature handling
-	private CreatureHelper cHelper = new CreatureHelper();
-
-	public ExchangeAction(int mountTokenId, int stableMasterId) 
+	public ExchangeAction(int mountTokenId, int stableMasterId, int exchangeMountCostIrons) 
 	{
-		this.mountTokenId = mountTokenId;
+		ExchangeAction.mountTokenId = mountTokenId;
 		this.stableMasterId = stableMasterId;
+		this.exchangeMountCostIrons = exchangeMountCostIrons;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, "Exchange mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
 		ModActions.registerAction(actionEntry);
@@ -127,6 +127,11 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 				try
 				{
 					mount = Creatures.getInstance().getCreature(performer.getVehicle());
+					
+					// Ask user to pay.
+					final ExchangeMountQuestion eQuestion = new ExchangeMountQuestion(performer, mount, exchangeMountCostIrons);
+					eQuestion.sendQuestion();
+					return true;
 				} catch (NoSuchCreatureException e)
 				{
 					logger.log(Level.WARNING, "Attempted to get mount Creature object and failed. " + e.getMessage(), e);
@@ -148,10 +153,23 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			return true;
 		}
         
+		// Do the exchange
+		exchangeMountForToken(performer, mount);
+		return true;
+	}
+
+	@Override
+	public boolean action(Action action, Creature performer, Item source, Creature target, short num, float counter) 
+	{
+		return action(action, performer, target, num, counter);
+	}
+
+	public static void exchangeMountForToken(final Creature performer, final Creature mount)
+	{
         try 
 		{
 			// Create new redemption token from mount.
-			Item redemptionToken = ItemFactory.createItem(mountTokenId, 
+			Item redemptionToken = ItemFactory.createItem(ExchangeAction.mountTokenId, 
 					MOUNT_TOKEN_QUALITY, performer.getName());
 			redemptionToken.setDescription(getMountDescription(mount));
 			redemptionToken.setName(getMountName(mount));
@@ -164,25 +182,16 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			performer.getInventory().insertItem(redemptionToken, true);
 			
 			// Remove mount from world.
-			cHelper.hideCreature(mount);
+			CreatureHelper.hideCreature(mount);
 
 			// Let the player know.
 			performer.getCommunicator().sendNormalServerMessage("You exchange your mount with the stable master for a mount token." );
-			return true;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage(), e);
-			return true;
-
 		}
 	}
-
-	@Override
-	public boolean action(Action action, Creature performer, Item source, Creature target, short num, float counter) 
-	{
-		return action(action, performer, target, num, counter);
-	}
-
-	private String getMountDescription(Creature target)
+	
+	private static String getMountDescription(Creature target)
 	{
 		String toReturn = target.getStatus().getAgeString().toLowerCase() + " ";
         if(target.getTemplate().getTemplateId() == HORSE_TEMPLATE_ID) 
@@ -215,7 +224,7 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
         return toReturn;
 	}
 
-	private String getMountName(Creature target)
+	private static String getMountName(Creature target)
 	{
 		String toReturn = "mount token";
         return toReturn;

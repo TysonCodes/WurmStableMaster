@@ -54,6 +54,7 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	private int mountTokenCentimetersY = 50;
 	private int mountTokenCentimetersZ = 200;
 	private int mountTokenMinimumWeightGrams = 50000;
+	private int exchangeMountCostIrons = 12345;
 	
 	// Stable master template creater
 	private static StableMaster stableMasterTemplateCreator = null;
@@ -160,7 +161,7 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 		logger.log(Level.INFO, "Registering exchange/redeem actions.");
 		logger.log(Level.INFO, "mountTokenId = " + mountTokenId);
 		logger.log(Level.INFO, "stableMasterId = " + stableMasterId);
-		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId));
+		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId, exchangeMountCostIrons));
 		ModActions.registerAction(new RedeemAction(mountTokenId));
 	}
 
