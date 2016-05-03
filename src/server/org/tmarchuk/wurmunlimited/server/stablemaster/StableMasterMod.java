@@ -164,6 +164,7 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId, exchangeMountCostIrons));
 		ModActions.registerAction(new RedeemAction(mountTokenId));
 		ModActions.registerAction(new LoadTokenAction(mountTokenId));
+		ModActions.registerAction(new UnloadTokenAction(mountTokenId));
 	}
 
 }

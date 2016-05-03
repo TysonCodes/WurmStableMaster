@@ -115,6 +115,7 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
             performer.getCommunicator().sendNormalServerMessage("You do not have enough room in your inventory.");
             return true;
         }
+        // TODO: Check max weight of player?
 
         // Get the creature we're trying to exchange. For now if using the Stable Master this needs to be
         // ridden. If this is a mount and we're configured to allow NPC-less control then let it go ahead.
