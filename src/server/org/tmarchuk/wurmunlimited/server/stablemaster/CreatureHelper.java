@@ -1,7 +1,5 @@
 package org.tmarchuk.wurmunlimited.server.stablemaster;
 
-import com.wurmonline.server.behaviours.ActionStack;
-
 /**
  * Created by Tyson Marchuk on 2016-04-29.
  */
@@ -9,6 +7,7 @@ import com.wurmonline.server.behaviours.ActionStack;
 // From Wurm Unlimited Server
 import com.wurmonline.server.MiscConstants;
 import com.wurmonline.server.Players;
+import com.wurmonline.server.behaviours.ActionStack;
 import com.wurmonline.server.behaviours.MethodsItems;
 import com.wurmonline.server.behaviours.Vehicles;
 import com.wurmonline.server.creatures.CombatHandler;
@@ -19,8 +18,8 @@ import com.wurmonline.server.creatures.Creatures;
 //From Ago's modloader
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 
-import java.io.IOException;
 //Base java
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

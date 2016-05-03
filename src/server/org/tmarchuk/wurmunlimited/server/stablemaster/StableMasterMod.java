@@ -130,7 +130,7 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 				{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
 					ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
 					ITEM_TYPE_FLOATING, ITEM_TYPE_NOTRADE, ITEM_TYPE_SERVERBOUND, ITEM_TYPE_NAMED,
-					ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, ITEM_TYPE_TRANSPORTABLE,
+					ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, 
 					ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
 				};
 			ItemTemplateFactory.getInstance().createItemTemplate(
@@ -158,11 +158,12 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	@Override
 	public void onServerStarted()
 	{
-		logger.log(Level.INFO, "Registering exchange/redeem actions.");
+		logger.log(Level.INFO, "Registering exchange/redeem/load actions.");
 		logger.log(Level.INFO, "mountTokenId = " + mountTokenId);
 		logger.log(Level.INFO, "stableMasterId = " + stableMasterId);
 		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId, exchangeMountCostIrons));
 		ModActions.registerAction(new RedeemAction(mountTokenId));
+		ModActions.registerAction(new LoadTokenAction(mountTokenId));
 	}
 
 }

@@ -14,6 +14,7 @@ import com.wurmonline.server.creatures.Creatures;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.players.Player;
 import com.wurmonline.server.Items;
+import com.wurmonline.server.NoSuchItemException;
 
 // From Ago's modloader
 import org.gotti.wurmunlimited.modsupport.actions.ActionPerformer;
@@ -62,13 +63,20 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	public List<ActionEntry> getBehavioursFor(Creature performer, Item target) 
 	{
 		// TODO: Probably need a bunch more checks to make sure it's not redeemed while in a boat or swimming or something for example.
-		if ((performer instanceof Player) && 
-				((target.getTemplateId() == mountTokenId))) 
+		try
 		{
-			return Arrays.asList(actionEntry);
-		} 
-		else 
+			if ((performer instanceof Player) && 
+					((target.getTemplateId() == mountTokenId)) && (target.getParent().isInventory())) 
+			{
+				return Arrays.asList(actionEntry);
+			} 
+			else 
+			{
+				return null;
+			}
+		} catch (NoSuchItemException e)
 		{
+			logger.log(Level.WARNING, e.getMessage(), e);
 			return null;
 		}
 	}
