@@ -92,7 +92,13 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 	@Override
 	public boolean action(Action action, Creature performer, Item source, Item target, short num, float counter) 
 	{
-		// TODO: Make sure there is space on the boat.
+		// Make sure there is space on the boat.
+		if (!target.hasSpaceFor(source.getVolume()))
+		{
+			performer.getCommunicator().sendNormalServerMessage("There is no enough space to load the mount token on the boat.");
+			return true;
+		}
+		
 		// TODO: Make sure performer has permission to open the inventory of the boat.
 
 		// Make sure source item is a token 
@@ -120,7 +126,10 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 		// Move the item from the performer's inventory to the boat's inventory.
 		try
 		{
+			// Load it.
 			boolean result = source.moveToItem(performer, target.getWurmId(), true);
+
+			// Check if the load worked.
 			if (result)
 			{
 				performer.getCommunicator().sendNormalServerMessage("You load your mount token onto the boat.");
