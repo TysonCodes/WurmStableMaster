@@ -6,11 +6,9 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
 
 //From Wurm Unlimited Server
 import com.wurmonline.server.NoSuchItemException;
-import com.wurmonline.server.NoSuchPlayerException;
 import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
 import com.wurmonline.server.creatures.Creature;
-import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemList;
 import com.wurmonline.server.players.Player;
@@ -126,8 +124,13 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 		// Move the item from the performer's inventory to the boat's inventory.
 		try
 		{
-			// Load it.
-			boolean result = source.moveToItem(performer, target.getWurmId(), true);
+			// Load it. Unfortunately we can't just use 'moveToItem' because the item is 'nodrop' and will
+			// fail. Also, even if we set it to drop temporarily the code checks the template and will fail 
+			// there. Instead this is the path that moveToItem takes when using a GM character (which works).
+			source.getParent().dropItem(source.getWurmId(), false);
+			performer.addItemDropped(source);
+			source.setLastOwnerId(performer.getWurmId());
+			boolean result = target.insertItem(source);
 
 			// Check if the load worked.
 			if (result)
@@ -139,7 +142,7 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 				performer.getCommunicator().sendNormalServerMessage("You fail to load your mount token onto the boat.");
 			}
 			return true;
-		} catch (NoSuchItemException | NoSuchPlayerException | NoSuchCreatureException e)
+		} catch (NoSuchItemException e)
 		{
 			logger.log(Level.WARNING, e.getMessage(), e);
 			return true;
