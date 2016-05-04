@@ -12,6 +12,7 @@ import com.wurmonline.server.behaviours.ActionEntry;
 import com.wurmonline.server.creatures.Creature;
 import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
+import com.wurmonline.server.items.ItemList;
 import com.wurmonline.server.players.Player;
 
 // Base Java
@@ -32,6 +33,7 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 
 	// Configuration
 	private final int mountTokenId;
+	private final boolean enableSmallBoatsLoad;
 	private static final String actionString = "Load mount token";
 	private static final String actionVerb = "loading";
 	private static final int[] actionTypes = new int [] 
@@ -45,9 +47,10 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 	private final ActionEntry actionEntry;
 	
 
-	public LoadTokenAction(int mountTokenId) 
+	public LoadTokenAction(int mountTokenId, boolean enableSmallBoatsLoad) 
 	{
 		this.mountTokenId = mountTokenId;
+		this.enableSmallBoatsLoad = enableSmallBoatsLoad;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, actionString, actionVerb, actionTypes);
 		ModActions.registerAction(actionEntry);
@@ -106,7 +109,13 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 			return true;
 		}
 		
-		// TODO: Check if the boat type is allowed.
+		// Check if the boat type is allowed.
+		if (!this.enableSmallBoatsLoad && ((target.getTemplateId() == ItemList.boatRowing) || 
+										   (target.getTemplateId() == ItemList.boatSailing)))
+		{
+			performer.getCommunicator().sendNormalServerMessage("Mount tokens can only be loaded on boats larger than rowboats and sailboats.");
+			return true;
+		}
 		
 		// Move the item from the performer's inventory to the boat's inventory.
 		try

@@ -16,6 +16,7 @@ import com.wurmonline.server.MiscConstants;
 // From Ago's modloader
 import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
 import org.gotti.wurmunlimited.modloader.classhooks.InvocationHandlerFactory;
+import org.gotti.wurmunlimited.modloader.interfaces.Configurable;
 import org.gotti.wurmunlimited.modloader.interfaces.Initable;
 import org.gotti.wurmunlimited.modloader.interfaces.ItemTemplatesCreatedListener;
 import org.gotti.wurmunlimited.modloader.interfaces.PreInitable;
@@ -29,10 +30,11 @@ import org.gotti.wurmunlimited.modsupport.actions.ModActions;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerStartedListener, ItemTemplatesCreatedListener
+public class StableMasterMod implements WurmMod, Configurable, Initable, PreInitable, ServerStartedListener, ItemTemplatesCreatedListener
 {
 	private static final Logger logger = Logger.getLogger(StableMasterMod.class.getName());
 	
@@ -45,16 +47,33 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 	private static final boolean MOUNT_TOKEN_IS_PURCHASED = false;
 	private static final int MOUNT_TOKEN_ARMOR_TYPE = -1;
 	
+	// Configuration value string constants
+	private static final String CONFIG_SPECIFY_STABLE_MASTER_ID = "specifyStableMasterId";
+	private static final String CONFIG_STABLE_MASTER_ID = "stableMasterId";
+	private static final String CONFIG_SPECIFY_MOUNT_TOKEN_ID = "specifyMountTokenId";
+	private static final String CONFIG_MOUNT_TOKEN_ID = "mountTokenId";
+	private static final String CONFIG_MOUNT_TOKEN_CM_X = "mountTokenCentimetersX";
+	private static final String CONFIG_MOUNT_TOKEN_CM_Y = "mountTokenCentimetersY";
+	private static final String CONFIG_MOUNT_TOKEN_CM_Z = "mountTokenCentimetersZ";
+	private static final String CONFIG_MOUNT_TOKEN_MIN_WEIGHT_GRAMS = "mountTokenMinimumWeightGrams";
+	private static final String CONFIG_MOUNT_TOKEN_MAX_WEIGHT_GRAMS = "mountTokenMaximumWeightGrams";
+	private static final String CONFIG_EXCHANGE_MOUNT_COST_IRONS = "exchangeMountCostIrons";
+	private static final String CONFIG_ENABLE_NO_NPC_EXCHANGE = "enableNoNpcExchange";
+	private static final String CONFIG_ENABLE_SMALL_BOATS_LOAD = "enableSmallBoatsLoad";
+	
 	// Configuration values
-	private static boolean specifyStableMasterId = false;
-	private static int stableMasterId = 20001;
+	private boolean specifyStableMasterId = false;
+	private int stableMasterId = 20001;
 	private boolean specifyMountTokenId = false;
 	private int mountTokenId = 20002;
 	private int mountTokenCentimetersX = 20;
 	private int mountTokenCentimetersY = 50;
 	private int mountTokenCentimetersZ = 200;
 	private int mountTokenMinimumWeightGrams = 50000;
-	private int exchangeMountCostIrons = 12345;
+	private int mountTokenMaximumWeightGrams = 75000;
+	private int exchangeMountCostIrons = 1234;
+	private boolean enableNoNpcExchange = false;
+	private boolean enableSmallBoatsLoad = false;
 	
 	// Stable master template creater
 	private static StableMaster stableMasterTemplateCreator = null;
@@ -65,7 +84,74 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 			logger.log(Level.SEVERE, msg, e);
 	}
 
-	// TODO: Configuration.
+	@Override
+	public void configure(Properties properties)
+	{
+		try
+		{
+			// Whether or not to use a hard coded stable master creature template ID.
+			this.specifyStableMasterId = Boolean.parseBoolean(properties.getProperty(CONFIG_SPECIFY_STABLE_MASTER_ID, 
+				String.valueOf(this.specifyStableMasterId)));
+			logger.log(Level.INFO, CONFIG_SPECIFY_STABLE_MASTER_ID + ": " + this.specifyStableMasterId);
+			
+			// Hard coded stable master ID to use if enabled.
+			this.stableMasterId = Integer.parseInt(properties.getProperty(CONFIG_STABLE_MASTER_ID, String.valueOf(this.stableMasterId)));
+			logger.log(Level.INFO, CONFIG_STABLE_MASTER_ID + ": " + this.stableMasterId);
+			
+			// Whether or not to use a hard coded mount token item template ID.
+			this.specifyMountTokenId = Boolean.parseBoolean(properties.getProperty(CONFIG_SPECIFY_MOUNT_TOKEN_ID, 
+					String.valueOf(this.specifyMountTokenId)));
+			logger.log(Level.INFO, CONFIG_SPECIFY_MOUNT_TOKEN_ID + ": " + this.specifyMountTokenId);
+				
+			// Hard coded mount token ID to use if enabled.
+			this.mountTokenId = Integer.parseInt(properties.getProperty(CONFIG_MOUNT_TOKEN_ID, String.valueOf(this.mountTokenId)));
+			logger.log(Level.INFO, CONFIG_MOUNT_TOKEN_ID + ": " + this.mountTokenId);
+			
+			// Mount token centimeters in the X dimension. Used to determine volume of token for loading.
+			this.mountTokenCentimetersX = Integer.parseInt(properties.getProperty(CONFIG_MOUNT_TOKEN_CM_X, 
+					String.valueOf(this.mountTokenCentimetersX)));
+			logger.log(Level.INFO, CONFIG_MOUNT_TOKEN_CM_X + ": " + this.mountTokenCentimetersX);
+			
+			// Mount token centimeters in the Y dimension. Used to determine volume of token for loading.
+			this.mountTokenCentimetersY = Integer.parseInt(properties.getProperty(CONFIG_MOUNT_TOKEN_CM_Y, 
+					String.valueOf(this.mountTokenCentimetersY)));
+			logger.log(Level.INFO, CONFIG_MOUNT_TOKEN_CM_Y + ": " + this.mountTokenCentimetersY);
+			
+			// Mount token centimeters in the Z dimension. Used to determine volume of token for loading.
+			this.mountTokenCentimetersZ = Integer.parseInt(properties.getProperty(CONFIG_MOUNT_TOKEN_CM_Z, 
+					String.valueOf(this.mountTokenCentimetersZ)));
+			logger.log(Level.INFO, CONFIG_MOUNT_TOKEN_CM_Z + ": " + this.mountTokenCentimetersZ);
+			
+			// Mount token minimum weight in grams. Applied before maximum so if larger than maximum it will be ignored.
+			this.mountTokenMinimumWeightGrams = Integer.parseInt(properties.getProperty(CONFIG_MOUNT_TOKEN_MIN_WEIGHT_GRAMS, 
+					String.valueOf(this.mountTokenMinimumWeightGrams)));
+			logger.log(Level.INFO, CONFIG_MOUNT_TOKEN_MIN_WEIGHT_GRAMS + ": " + this.mountTokenMinimumWeightGrams);
+			
+			// Mount token maximum weight in grams. Applied after minimum so, if smaller than minimum, 
+			// minimum will be ignored.
+			this.mountTokenMaximumWeightGrams = Integer.parseInt(properties.getProperty(CONFIG_MOUNT_TOKEN_MAX_WEIGHT_GRAMS, 
+					String.valueOf(this.mountTokenMaximumWeightGrams)));
+			logger.log(Level.INFO, CONFIG_MOUNT_TOKEN_MAX_WEIGHT_GRAMS + ": " + this.mountTokenMaximumWeightGrams);
+	
+			// Exchange mount cost in irons if using NPC.
+			this.exchangeMountCostIrons = Integer.parseInt(properties.getProperty(CONFIG_EXCHANGE_MOUNT_COST_IRONS, 
+					String.valueOf(this.exchangeMountCostIrons)));
+			logger.log(Level.INFO, CONFIG_EXCHANGE_MOUNT_COST_IRONS + ": " + this.exchangeMountCostIrons);
+			
+			// Whether or not to allow the exchange action to work directly on a horse for no cost.
+			this.enableNoNpcExchange = Boolean.parseBoolean(properties.getProperty(CONFIG_ENABLE_NO_NPC_EXCHANGE, 
+				String.valueOf(this.enableNoNpcExchange)));
+			logger.log(Level.INFO, CONFIG_ENABLE_NO_NPC_EXCHANGE + ": " + this.enableNoNpcExchange);
+			
+			// Whether or not to allow loading of mount tokens onto smaller boats (rowboat/sailboat).
+			this.enableSmallBoatsLoad = Boolean.parseBoolean(properties.getProperty(CONFIG_ENABLE_SMALL_BOATS_LOAD, 
+				String.valueOf(this.enableSmallBoatsLoad)));
+			logger.log(Level.INFO, CONFIG_ENABLE_SMALL_BOATS_LOAD + ": " + this.enableSmallBoatsLoad);
+		} catch (NumberFormatException e)
+		{
+			logger.log(Level.WARNING, "Failed to parse one of the configuration values. " + e.getMessage(), e);
+		}
+	}
 	
 	@Override
 	public void preInit() 
@@ -161,9 +247,10 @@ public class StableMasterMod implements WurmMod, Initable, PreInitable, ServerSt
 		logger.log(Level.INFO, "Registering exchange/redeem/load actions.");
 		logger.log(Level.INFO, "mountTokenId = " + mountTokenId);
 		logger.log(Level.INFO, "stableMasterId = " + stableMasterId);
-		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId, exchangeMountCostIrons));
+		ModActions.registerAction(new ExchangeAction(mountTokenId, stableMasterId, mountTokenMinimumWeightGrams,
+				mountTokenMaximumWeightGrams, exchangeMountCostIrons, enableNoNpcExchange));
 		ModActions.registerAction(new RedeemAction(mountTokenId));
-		ModActions.registerAction(new LoadTokenAction(mountTokenId));
+		ModActions.registerAction(new LoadTokenAction(mountTokenId, enableSmallBoatsLoad));
 		ModActions.registerAction(new UnloadTokenAction(mountTokenId));
 	}
 

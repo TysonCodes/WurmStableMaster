@@ -40,17 +40,24 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	// Configuration
 	private static int mountTokenId;
 	private final int stableMasterId;
+	private static int mountTokenMinimumWeightGrams;
+	private static int mountTokenMaximumWeightGrams;
 	private final int exchangeMountCostIrons;
+	private final boolean enableNoNpcExchange;
 	
 	// Action data
 	private final short actionId;
 	private final ActionEntry actionEntry;
 
-	public ExchangeAction(int mountTokenId, int stableMasterId, int exchangeMountCostIrons) 
+	public ExchangeAction(int mountTokenId, int stableMasterId, int mountTokenMinimumWeightGrams, 
+			int mountTokenMaximumWeightGrams, int exchangeMountCostIrons, boolean enableNoNpcExchange) 
 	{
 		ExchangeAction.mountTokenId = mountTokenId;
 		this.stableMasterId = stableMasterId;
+		ExchangeAction.mountTokenMinimumWeightGrams = mountTokenMinimumWeightGrams;
+		ExchangeAction.mountTokenMaximumWeightGrams = mountTokenMaximumWeightGrams;
 		this.exchangeMountCostIrons = exchangeMountCostIrons;
+		this.enableNoNpcExchange = enableNoNpcExchange;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, "Exchange mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
 		ModActions.registerAction(actionEntry);
@@ -75,12 +82,16 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	@Override
 	public List<ActionEntry> getBehavioursFor(Creature performer, Creature target) 
 	{
-		if ((performer instanceof Player) && 
+		// If we are configured to allow direct exchanges for no cost check if this is a mount.
+		// TODO: Update this to be any mount and not just horses and hell horses.
+		if (this.enableNoNpcExchange && (performer instanceof Player) && 
 				((target.getTemplate().getTemplateId() == HORSE_TEMPLATE_ID) || 
 				 target.getTemplate().isHellHorse())) 
 		{
 			return Arrays.asList(actionEntry);
 		} 
+		
+		// Check if we're using a stable master.
 		if ((performer instanceof Player) &&
 			(target.getTemplate().getTemplateId() == stableMasterId) && 
 			performer.isVehicleCommander())
@@ -90,15 +101,10 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			{
 				return Arrays.asList(actionEntry);
 			}
-			else 
-			{
-				return null;
-			}
 		}
-		else 
-		{
-			return null;
-		}
+		
+		// Doesn't apply.
+		return null;
 	}
 
 	@Override
@@ -115,6 +121,7 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
             performer.getCommunicator().sendNormalServerMessage("You do not have enough room in your inventory.");
             return true;
         }
+        
         // TODO: Check max weight of player?
 
         // Get the creature we're trying to exchange. For now if using the Stable Master this needs to be
@@ -141,9 +148,9 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			}
 		}
 
-		// TODO: Add checks for more mount types and configuration to turn off for servers that want to
-		// require an NPC.
-		if (target.isHorse())
+		// If we're configured to allow direct exchanges for no cost check if this is a mount.
+		// TODO: Add checks for more mount types.
+		if (this.enableNoNpcExchange && target.isHorse())
         {
 			mount = target;
         }
@@ -170,17 +177,21 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
         try 
 		{
 			// Create new redemption token from mount.
-			Item redemptionToken = ItemFactory.createItem(ExchangeAction.mountTokenId, 
+			Item mountToken = ItemFactory.createItem(ExchangeAction.mountTokenId, 
 					MOUNT_TOKEN_QUALITY, performer.getName());
-			redemptionToken.setDescription(getMountDescription(mount));
-			redemptionToken.setName(getMountName(mount));
-			redemptionToken.setData(mount.getWurmId());
-			redemptionToken.setWeight((int)Math.min(redemptionToken.getTemplate().getWeightGrams(), mount.getStatus().getBody().getWeight(mount.getStatus().fat)), false);
-			redemptionToken.setLastOwnerId(performer.getWurmId());
-			redemptionToken.setFemale(mount.getSex() == 1);
+			mountToken.setDescription(getMountDescription(mount));
+			mountToken.setName(getMountName(mount));
+			mountToken.setData(mount.getWurmId());
+			int calculatedMountWeight = (int) mount.getStatus().getBody().getWeight(mount.getStatus().fat);
+			logger.log(Level.INFO, "Calculated mount weight: " + calculatedMountWeight);
+			int mountTokenWeight = Math.min(mountTokenMaximumWeightGrams, 
+					Math.max(mountTokenMinimumWeightGrams, calculatedMountWeight));
+			mountToken.setWeight(mountTokenWeight, false);
+			mountToken.setLastOwnerId(performer.getWurmId());
+			mountToken.setFemale(mount.getSex() == 1);
 
 			// Add token to player's inventory.
-			performer.getInventory().insertItem(redemptionToken, true);
+			performer.getInventory().insertItem(mountToken, true);
 			
 			// Remove mount from world.
 			CreatureHelper.hideCreature(mount);
