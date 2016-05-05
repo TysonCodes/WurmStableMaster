@@ -9,6 +9,7 @@ import com.wurmonline.server.NoSuchItemException;
 import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
 import com.wurmonline.server.creatures.Creature;
+import com.wurmonline.server.Items;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemList;
 import com.wurmonline.server.players.Player;
@@ -97,8 +98,13 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 			return true;
 		}
 		
-		// TODO: Make sure performer has permission to open the inventory of the boat.
-
+		// Make sure the boat doesn't already have max inventory items.
+		if (!target.mayCreatureInsertItem())
+		{
+			performer.getCommunicator().sendNormalServerMessage("There is no room to load the mount token on the boat.");
+			return true;
+		}
+		
 		// Make sure source item is a token 
 		if (source.getTemplateId() != mountTokenId)
 		{
@@ -121,9 +127,18 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 			return true;
 		}
 		
-		// Move the item from the performer's inventory to the boat's inventory.
 		try
 		{
+			// Make sure performer has permission to put items in the inventory of the boat.
+			if (target.isLocked() && !performer.hasKeyForLock(Items.getItem(target.getLockId())) && 
+					!target.isOwner(performer) && !target.mayAccessHold(performer))
+			{
+				performer.getCommunicator().sendNormalServerMessage("You are not allowed to place items on the boat.");
+				return true;
+			}
+
+			// Move the item from the performer's inventory to the boat's inventory.
+
 			// Load it. Unfortunately we can't just use 'moveToItem' because the item is 'nodrop' and will
 			// fail. Also, even if we set it to drop temporarily the code checks the template and will fail 
 			// there. Instead this is the path that moveToItem takes when using a GM character (which works).

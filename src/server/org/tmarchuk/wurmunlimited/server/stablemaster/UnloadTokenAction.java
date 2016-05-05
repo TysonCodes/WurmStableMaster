@@ -11,6 +11,7 @@ import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
 import com.wurmonline.server.creatures.Creature;
 import com.wurmonline.server.creatures.NoSuchCreatureException;
+import com.wurmonline.server.Items;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.players.Player;
 
@@ -109,11 +110,23 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
             return true;
         }
 
-        // TODO: Check max weight of player?
-		// TODO: Make sure performer has permission to open the inventory of the boat.
+        // Check max weight of player
+        if (!performer.canCarry(target.getWeightGrams()))
+        {
+            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the mount token. You need to drop some things first.");
+            return true;
+        }
 
 		try
 		{
+			// Make sure performer has permission to take items from the inventory of the boat.
+			if (target.isLocked() && !performer.hasKeyForLock(Items.getItem(target.getLockId())) && 
+					!target.isOwner(performer) && !target.mayAccessHold(performer))
+			{
+				performer.getCommunicator().sendNormalServerMessage("You are not allowed to take items from the boat.");
+				return true;
+			}
+
 			// Make sure target item is a token 
 			if ((target.getTemplateId() != mountTokenId) || (!target.getParent().isBoat()))
 			{

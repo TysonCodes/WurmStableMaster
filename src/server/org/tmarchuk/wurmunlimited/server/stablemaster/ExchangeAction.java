@@ -122,7 +122,12 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
             return true;
         }
         
-        // TODO: Check max weight of player?
+        // Check max weight of player
+        if (!performer.canCarry(getMountTokenWeight(target)))
+        {
+            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the mount token. You need to drop some things first.");
+            return true;
+        }
 
         // Get the creature we're trying to exchange. For now if using the Stable Master this needs to be
         // ridden. If this is a mount and we're configured to allow NPC-less control then let it go ahead.
@@ -182,11 +187,7 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			mountToken.setDescription(getMountDescription(mount));
 			mountToken.setName(getMountName(mount));
 			mountToken.setData(mount.getWurmId());
-			int calculatedMountWeight = (int) mount.getStatus().getBody().getWeight(mount.getStatus().fat);
-			logger.log(Level.INFO, "Calculated mount weight: " + calculatedMountWeight);
-			int mountTokenWeight = Math.min(mountTokenMaximumWeightGrams, 
-					Math.max(mountTokenMinimumWeightGrams, calculatedMountWeight));
-			mountToken.setWeight(mountTokenWeight, false);
+			mountToken.setWeight(getMountTokenWeight(mount), false);
 			mountToken.setLastOwnerId(performer.getWurmId());
 			mountToken.setFemale(mount.getSex() == 1);
 
@@ -201,6 +202,14 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage(), e);
 		}
+	}
+	
+	private static int getMountTokenWeight(Creature mount)
+	{
+		int calculatedMountWeight = (int) mount.getStatus().getBody().getWeight(mount.getStatus().fat);
+		int mountTokenWeight = Math.min(mountTokenMaximumWeightGrams, 
+				Math.max(mountTokenMinimumWeightGrams, calculatedMountWeight));
+		return mountTokenWeight;
 	}
 	
 	private static String getMountDescription(Creature target)

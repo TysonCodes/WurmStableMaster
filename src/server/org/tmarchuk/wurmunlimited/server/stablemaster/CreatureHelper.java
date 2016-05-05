@@ -242,8 +242,7 @@ public class CreatureHelper
 			}
 		} catch (Exception e)
 		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.log(Level.WARNING, creat.getName() + ":" + e.getMessage(), e);
 		}
 	}
 	
