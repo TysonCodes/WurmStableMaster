@@ -14,27 +14,24 @@ import static com.wurmonline.server.items.ItemTypes.*;
 import com.wurmonline.server.MiscConstants;
 
 // From Ago's modloader
-import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
-import org.gotti.wurmunlimited.modloader.classhooks.InvocationHandlerFactory;
 import org.gotti.wurmunlimited.modloader.interfaces.Configurable;
 import org.gotti.wurmunlimited.modloader.interfaces.Initable;
 import org.gotti.wurmunlimited.modloader.interfaces.ItemTemplatesCreatedListener;
 import org.gotti.wurmunlimited.modloader.interfaces.PreInitable;
 import org.gotti.wurmunlimited.modloader.interfaces.ServerStartedListener;
-import org.gotti.wurmunlimited.modloader.interfaces.WurmMod;
+import org.gotti.wurmunlimited.modloader.interfaces.WurmServerMod;
 import org.gotti.wurmunlimited.modsupport.IdFactory;
 import org.gotti.wurmunlimited.modsupport.IdType;
 import org.gotti.wurmunlimited.modsupport.actions.ModActions;
+import org.gotti.wurmunlimited.modsupport.creatures.ModCreatures;
 
 // Base Java
 import java.io.IOException;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class StableMasterMod implements WurmMod, Configurable, Initable, PreInitable, ServerStartedListener, ItemTemplatesCreatedListener
+public class StableMasterMod implements WurmServerMod, Configurable, Initable, PreInitable, ServerStartedListener, ItemTemplatesCreatedListener
 {
 	private static final Logger logger = Logger.getLogger(StableMasterMod.class.getName());
 	
@@ -75,9 +72,9 @@ public class StableMasterMod implements WurmMod, Configurable, Initable, PreInit
 	private boolean enableNoNpcExchange = false;
 	private boolean enableSmallBoatsLoad = false;
 	
-	// Stable master template creater
-	private static StableMaster stableMasterTemplateCreator = null;
-
+	// Internal
+	private StableMaster stableMasterBuilder = null;
+	
 	public static void logException(String msg, Throwable e)
 	{
 		if (logger != null)
@@ -163,40 +160,9 @@ public class StableMasterMod implements WurmMod, Configurable, Initable, PreInit
 	public void init() 
 	{
 		logger.log(Level.INFO, "Registering stable master template");
-
-		// Unfortunately it looks like the ModCreatures support in Ago's loader does a lot more
-		// than just add the new creature. I think the problems people are seeing with breeding
-		// horses with the previous creatures mod have something to do with these changes but 
-		// I don't have time to figure them out and fix them now and there doesn't seem to be an
-		// easy way to disable the traits modification and such in the mod loader. So for now 
-		// I'm loading this new NPC the direct way.
-		// com.wurmonline.server.creatures.CreatureTemplateCreator.createCreatureTemplates()
-        HookManager.getInstance().registerHook(
-                "com.wurmonline.server.creatures.CreatureTemplateCreator", 
-                "createCreatureTemplates", "()V", new InvocationHandlerFactory()
-                {
-                    @Override
-                    public InvocationHandler createInvocationHandler()
-                    {
-                        return new InvocationHandler()
-                        {
-                            @Override
-                            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
-                            {
-                            	// Call the original function to add normal creatures.
-								Object result = method.invoke(proxy, args);
-								
-								// Create a new creature template for the stable master.
-								stableMasterTemplateCreator = new StableMaster(specifyStableMasterId, stableMasterId);
-								stableMasterId = stableMasterTemplateCreator.getTemplateId();
-								stableMasterTemplateCreator.onItemTemplatesCreated();
-								
-								return result;
-                            }
-                        };
-                    }
-                });
-	
+		ModCreatures.init();
+		stableMasterBuilder = new StableMaster(specifyStableMasterId, stableMasterId);
+		ModCreatures.addCreature(stableMasterBuilder);
 	}
 
 	@Override
@@ -244,6 +210,9 @@ public class StableMasterMod implements WurmMod, Configurable, Initable, PreInit
 	@Override
 	public void onServerStarted()
 	{
+		// Get the stable master ID that was ultimately used.
+		stableMasterId = stableMasterBuilder.getTemplateId();
+
 		logger.log(Level.INFO, "Registering exchange/redeem/load actions.");
 		logger.log(Level.INFO, "mountTokenId = " + mountTokenId);
 		logger.log(Level.INFO, "stableMasterId = " + stableMasterId);

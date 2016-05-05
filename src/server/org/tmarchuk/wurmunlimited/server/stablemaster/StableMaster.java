@@ -9,31 +9,24 @@ import com.wurmonline.shared.constants.SoundNames;
 
 //From Wurm Unlimited Server
 import com.wurmonline.server.bodys.BodyTemplate;
-import com.wurmonline.server.creatures.CreatureTemplate;
-import com.wurmonline.server.creatures.CreatureTemplateFactory;
-import com.wurmonline.server.creatures.CreatureTypes;
+import static com.wurmonline.server.creatures.CreatureTypes.*;
 import com.wurmonline.server.skills.SkillList;
-import com.wurmonline.server.skills.Skills;
-import com.wurmonline.server.skills.SkillsFactory;
 
 //From Ago's modloader
-import org.gotti.wurmunlimited.modloader.ReflectionUtil;
+import org.gotti.wurmunlimited.modsupport.CreatureTemplateBuilder;
 import org.gotti.wurmunlimited.modsupport.IdFactory;
 import org.gotti.wurmunlimited.modsupport.IdType;
+import org.gotti.wurmunlimited.modsupport.creatures.ModCreature;
 
-// Base Java
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
-public class StableMaster implements CreatureTypes
+public class StableMaster implements ModCreature
 {
 	// Constants
 	private static String STABLE_MASTER_TEMPLATE_BUILDER_ID = "stableMaster";
 	
 	// Template ID to use for the stable master. Might be set or auto-generated.
-	private final int stableMasterTemplateId;
+	private boolean specifiedStableMasterTemplateId;
+	private int stableMasterTemplateId;
 
 	// Simple parameters for the template
 	private final String tName = "Stable master";
@@ -58,48 +51,8 @@ public class StableMaster implements CreatureTypes
 	
 	public StableMaster(boolean specifyId, int id)
 	{
-		if (specifyId)
-		{
-			stableMasterTemplateId = id;
-		}
-		else
-		{
-			stableMasterTemplateId = IdFactory.getIdFor(STABLE_MASTER_TEMPLATE_BUILDER_ID, IdType.CREATURETEMPLATE);
-		}
-	}
-	
-	public void onItemTemplatesCreated() 
-	{
-		// This NPC is largely based on the Salesman NPC for now.
-		final int[] tTypes = {C_TYPE_SENTINEL, C_TYPE_INVULNERABLE, C_TYPE_SWIMMING, C_TYPE_HUMAN };
-		final Skills tSkills = SkillsFactory.createSkills(tName);
-		tSkills.learnTemp(SkillList.BODY_STRENGTH, 15.0f);
-		tSkills.learnTemp(SkillList.BODY_CONTROL, 15.0f);
-		tSkills.learnTemp(SkillList.BODY_STAMINA, 10.0f);
-		tSkills.learnTemp(SkillList.MIND_LOGICAL, 30.0f);
-		tSkills.learnTemp(SkillList.MIND_SPEED, 30.0f);
-		tSkills.learnTemp(SkillList.SOUL_STRENGTH, 99.0f);
-		tSkills.learnTemp(SkillList.SOUL_DEPTH, 4.0f);
-		tSkills.learnTemp(SkillList.WEAPONLESS_FIGHTING, 40.0f);
-
-		try
-		{
-			final CreatureTemplate temp = createCreatureTemplate(stableMasterTemplateId, tName, tDescription, 
-				tModelName, tTypes, BodyTemplate.TYPE_HUMAN, tSkills, 
-				tVisionTiles, tSex, tHeightCentimeters, tLengthCentimeters, tWidthCentimeters, 
-				SoundNames.DEATH_MALE_SND, SoundNames.DEATH_FEMALE_SND, SoundNames.HIT_MALE_SND, 
-				SoundNames.HIT_FEMALE_SND, tNaturalArmour, tHandDamage, tKickDamage, tBiteDamage, 
-				tHeadDamage, tBreathDamage, tSpeed, 
-				tMoveRate, tItemsButchered, tMaxHuntDistanceTiles, tAggressivity);
-
-			Method setBaseCombatRating = ReflectionUtil.getMethod(CreatureTemplate.class, "setBaseCombatRating");
-			ReflectionUtil.callPrivateMethod(temp, setBaseCombatRating, 70.0f);
-			Field hasHands = ReflectionUtil.getField(CreatureTemplate.class, "hasHands");
-			ReflectionUtil.setPrivateField(temp, hasHands, true);
-		} catch (IOException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | ClassCastException | NoSuchFieldException e) 
-		{
-			throw new RuntimeException(e);
-		}
+		specifiedStableMasterTemplateId = specifyId;
+		stableMasterTemplateId = id;
 	}
 	
 	public int getTemplateId()
@@ -107,11 +60,52 @@ public class StableMaster implements CreatureTypes
 		return this.stableMasterTemplateId;
 	}
 
-	private CreatureTemplate createCreatureTemplate(final int id, final String name, final String longDesc, final String modelName, final int[] types, final byte bodyType, final Skills skills, final short vision, final byte sex, final short centimetersHigh, final short centimetersLong,
-			final short centimetersWide, final String deathSndMale, final String deathSndFemale, final String hitSndMale, final String hitSndFemale, final float naturalArmour, final float handDam, final float kickDam, final float biteDam, final float headDam, final float breathDam,
-			final float speed, final int moveRate, final int[] itemsButchered, final int maxHuntDist, final int aggress) throws IOException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException {
+	@Override
+	public CreatureTemplateBuilder createCreateTemplateBuilder()
+	{
+		// Update the stable master template ID based on the factory if we weren't told to use a specific one.
+		if (!specifiedStableMasterTemplateId)
+		{
+			stableMasterTemplateId = IdFactory.getIdFor(STABLE_MASTER_TEMPLATE_BUILDER_ID, IdType.CREATURETEMPLATE);
+		}
 
-		return ReflectionUtil.callPrivateMethod(CreatureTemplateFactory.getInstance(), ReflectionUtil.getMethod(CreatureTemplateFactory.class, "createCreatureTemplate"), id, name, longDesc, modelName, types, bodyType, skills, vision, sex, centimetersHigh, centimetersLong, centimetersWide,
-				deathSndMale, deathSndFemale, hitSndMale, hitSndFemale, naturalArmour, handDam, kickDam, biteDam, headDam, breathDam, speed, moveRate, itemsButchered, maxHuntDist, aggress);
+		// This NPC is largely based on the Salesman NPC for now.
+		final int[] tTypes = {C_TYPE_SENTINEL, C_TYPE_INVULNERABLE, C_TYPE_SWIMMING, C_TYPE_HUMAN };
+		CreatureTemplateBuilder builder = new CreatureTemplateBuilder(stableMasterTemplateId);
+		builder.name(tName);
+		builder.description(tDescription);
+		builder.modelName(tModelName);
+		builder.types(tTypes);
+		builder.bodyType(BodyTemplate.TYPE_HUMAN);
+		builder.vision(tVisionTiles);
+		builder.sex(tSex);
+		builder.dimension(tHeightCentimeters, tLengthCentimeters, tWidthCentimeters);
+		builder.deathSounds(SoundNames.DEATH_MALE_SND, SoundNames.DEATH_FEMALE_SND);
+		builder.hitSounds(SoundNames.HIT_MALE_SND, SoundNames.HIT_FEMALE_SND);
+		builder.naturalArmour(tNaturalArmour);
+		builder.damages(tHandDamage, tKickDamage, tBiteDamage, tHeadDamage, tBreathDamage);
+		builder.speed(tSpeed);
+		builder.moveRate(tMoveRate);
+		builder.itemsButchered(tItemsButchered);
+		builder.maxHuntDist(tMaxHuntDistanceTiles);
+		builder.aggressive(tAggressivity);
+
+		// Skills (Copied from Salesman for now)
+		builder.skill(SkillList.BODY_STRENGTH, 15.0f);
+		builder.skill(SkillList.BODY_CONTROL, 15.0f);
+		builder.skill(SkillList.BODY_STAMINA, 10.0f);
+		builder.skill(SkillList.MIND_LOGICAL, 30.0f);
+		builder.skill(SkillList.MIND_SPEED, 30.0f);
+		builder.skill(SkillList.SOUL_STRENGTH, 99.0f);
+		builder.skill(SkillList.SOUL_DEPTH, 4.0f);
+		builder.skill(SkillList.WEAPONLESS_FIGHTING, 40.0f);
+		
+		builder.baseCombatRating(70.0f);
+
+		// TODO: Figure out if we need this.
+		//Field hasHands = ReflectionUtil.getField(CreatureTemplate.class, "hasHands");
+		//ReflectionUtil.setPrivateField(temp, hasHands, true);
+
+		return builder;
 	}
 }
