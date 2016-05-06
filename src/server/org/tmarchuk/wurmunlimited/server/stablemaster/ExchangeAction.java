@@ -7,11 +7,7 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
-import com.wurmonline.server.behaviours.Vehicle;
-import com.wurmonline.server.behaviours.Vehicles;
 import com.wurmonline.server.creatures.Creature;
-import com.wurmonline.server.creatures.Creatures;
-import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemFactory;
 import com.wurmonline.server.players.Player;
@@ -82,25 +78,19 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	@Override
 	public List<ActionEntry> getBehavioursFor(Creature performer, Creature target) 
 	{
-		// If we are configured to allow direct exchanges for no cost check if this is an animal.
-		// TODO: Update this to be any animal and not just horses and hell horses.
+		// If we are configured to allow direct exchanges for no cost check if this is an animal we are leading.
 		if (this.enableNoNpcExchange && (performer instanceof Player) && 
-				((target.getTemplate().getTemplateId() == HORSE_TEMPLATE_ID) || 
-				 target.getTemplate().isHellHorse())) 
+				target.leader == performer) 
 		{
 			return Arrays.asList(actionEntry);
 		} 
 		
-		// Check if we're using a stable master.
+		// Check if we're using a stable master and leading one or more animals.
 		if ((performer instanceof Player) &&
 			(target.getTemplate().getTemplateId() == stableMasterId) && 
-			performer.isVehicleCommander())
+			(performer.getNumberOfFollowers() > 0))
 		{
-			Vehicle pVehicle = Vehicles.getVehicleForId(performer.getVehicle());
-			if (pVehicle.isCreature())
-			{
-				return Arrays.asList(actionEntry);
-			}
+			return Arrays.asList(actionEntry);
 		}
 		
 		// Doesn't apply.
@@ -115,60 +105,65 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	@Override
 	public boolean action(Action action, Creature performer, Creature target, short num, float counter) 
 	{
-		// Make sure we're not at max number items.
-        if (!performer.getInventory().mayCreatureInsertItem()) 
+		int numLedAnimals = performer.getNumberOfFollowers();
+		int numAnimalsToExchange = 0;
+		Creature[] animalsToExchange = new Creature[] {};
+        int totalWeight = 0;
+        boolean useStableMaster = false;
+
+		// Handle the case where we're talking to a stable master.
+		if ((target.getTemplate().getTemplateId() == stableMasterId) && (numLedAnimals > 0))
+		{
+			useStableMaster = true;
+			numAnimalsToExchange = numLedAnimals;
+	        animalsToExchange = performer.getFollowers();
+	        for (Creature creat : animalsToExchange)
+	        {
+	        	totalWeight += getAnimalTokenWeight(creat);
+	        }
+		}
+		else if (this.enableNoNpcExchange && (target.leader == performer))
+		{
+			numAnimalsToExchange = 1;
+			totalWeight = getAnimalTokenWeight(target);
+		}
+		else
+		{
+        	performer.getCommunicator().sendNormalServerMessage("Nothing to exchange!");
+			return true;
+		}
+		
+		// Make sure performer has space for all the tokens in terms of item number.
+		final int MAX_NUM_ITEMS = 100;
+        if (!performer.getInventory().mayCreatureInsertItem() && 
+        		((performer.getInventory().getNumItemsNotCoins() + numAnimalsToExchange) <= MAX_NUM_ITEMS)) 
         {
             performer.getCommunicator().sendNormalServerMessage("You do not have enough room in your inventory.");
             return true;
         }
         
-        // Check max weight of player
-        if (!performer.canCarry(getAnimalTokenWeight(target)))
+        // Make sure performer can carry all the tokens without being unable to move.
+        if (!performer.canCarry(totalWeight))
         {
-            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the animal token. You need to drop some things first.");
+            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the animal token(s). You need to drop some things first.");
             return true;
         }
 
-        // Get the creature we're trying to exchange. For now if using the Stable Master this needs to be
-        // ridden. If this is an animal and we're configured to allow NPC-less control then let it go ahead.
-        Creature animal = null;
-		if ((target.getTemplate().getTemplateId() == stableMasterId) && performer.isVehicleCommander())
+        // Handle processing with the stable master.
+        if (useStableMaster)
 		{
-			Vehicle pVehicle = Vehicles.getVehicleForId(performer.getVehicle());
-			if (pVehicle.isCreature())
-			{
-				try
-				{
-					animal = Creatures.getInstance().getCreature(performer.getVehicle());
-					
-					// Ask user to pay.
-					final ExchangeAnimalQuestion eQuestion = new ExchangeAnimalQuestion(performer, new Creature[] {animal}, exchangeAnimalCostIrons);
-					eQuestion.sendQuestion();
-					return true;
-				} catch (NoSuchCreatureException e)
-				{
-					logger.log(Level.WARNING, "Attempted to get animal Creature object and failed. " + e.getMessage(), e);
-				}
-                
-			}
-		}
-
-		// If we're configured to allow direct exchanges for no cost check if this is an animal.
-		// TODO: Add checks for more animal types.
-		if (this.enableNoNpcExchange && target.isHorse())
-        {
-			animal = target;
-        }
-		
-		if (animal == null)
-		{
-        	performer.getCommunicator().sendNormalServerMessage("Nothing to exchange!");
+			// Ask user to pay.
+			final ExchangeAnimalQuestion eQuestion = new ExchangeAnimalQuestion(performer, 
+					animalsToExchange, exchangeAnimalCostIrons);
+			eQuestion.sendQuestion();
 			return true;
 		}
-        
-		// Do the exchange
-		exchangeAnimalForToken(performer, animal);
-		return true;
+        else	// Above we've checked that we're enabled to exchange animals for no cost without an NPC.
+        {
+        	// Do the exchange
+        	exchangeAnimalForToken(performer, target);
+        	return true;
+        }
 	}
 
 	@Override
