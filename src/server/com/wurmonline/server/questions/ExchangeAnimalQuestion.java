@@ -17,16 +17,19 @@ import java.util.Properties;
 // This mod
 import org.tmarchuk.wurmunlimited.server.stablemaster.ExchangeAction;
 
-public class ExchangeMountQuestion extends Question
+public class ExchangeAnimalQuestion extends Question
 {
 	// Constant
-	private static final int EXCHANGE_MOUNT_QUESTION_TYPE = 1000;	// Should really be in QuestionTypes but I don't know how to put it there.
+	private static final int EXCHANGE_ANIMAL_QUESTION_TYPE = 1000;	// Should really be in QuestionTypes but I don't know how to put it there.
 
 	// Configuration
-	private final int exchangeMountCostIrons;
-	private final Change exchangeMountCost;
+	private final int exchangeAnimalCostIrons;
+	private final Change exchangeAnimalCost;
 	private final String answerGroup = "exchange";
-	private final Creature mount;
+	private final Creature[] animals;
+	private final int numAnimals;
+	private final long totalCostIrons;
+	private final Change totalCost;
 	private static final int dialogWidth = 300;
 	private static final int dialogHeight = 300;
 	private static final boolean dialogResizeable = true;
@@ -34,16 +37,21 @@ public class ExchangeMountQuestion extends Question
 	private static final int dialogRed = 200;
 	private static final int dialogGreen = 200;
 	private static final int dialogBlue = 200;
-	private static final String dialogTitle = "Exchange Mount";
-	private static final String dialogDescription = "Do you want to exchange your mount?"; 
+	private static final String dialogTitle = "Exchange Animal";
+	private static final String dialogDescription = "Do you want to exchange your led animal(s)?"; 
 	
-	public ExchangeMountQuestion(final Creature aResponder, final Creature mount, int exchangeMountCostIrons)
+	public ExchangeAnimalQuestion(final Creature aResponder, final Creature[] animals, int exchangeAnimalCostIrons)
 	{
 		super(aResponder, dialogTitle, dialogDescription, 
-				EXCHANGE_MOUNT_QUESTION_TYPE, aResponder.getWurmId());
-		this.exchangeMountCostIrons = exchangeMountCostIrons;
-		this.mount = mount;
-		this.exchangeMountCost = Economy.getEconomy().getChangeFor((long) exchangeMountCostIrons);
+				EXCHANGE_ANIMAL_QUESTION_TYPE, aResponder.getWurmId());
+		this.exchangeAnimalCostIrons = exchangeAnimalCostIrons;
+		this.animals = animals;
+		this.exchangeAnimalCost = Economy.getEconomy().getChangeFor((long) exchangeAnimalCostIrons);
+
+		// Determine number of animals and total cost and convert to Change.
+		this.numAnimals = animals.length;
+		this.totalCostIrons = this.exchangeAnimalCostIrons * numAnimals;
+		this.totalCost = Economy.getEconomy().getChangeFor(totalCostIrons);
 	}
 
 	@Override
@@ -57,13 +65,23 @@ public class ExchangeMountQuestion extends Question
 			// Attempt to charge them.
 			try
 			{
-				if (resp.chargeMoney(this.exchangeMountCostIrons))
+				if (resp.chargeMoney(this.totalCostIrons))
 				{
 					// Thank them.
-					resp.getCommunicator().sendNormalServerMessage("Thank you! Here is your token.");
+					if (this.numAnimals > 1)
+					{
+						resp.getCommunicator().sendNormalServerMessage("Thank you! Here are your tokens.");
+					}
+					else
+					{
+						resp.getCommunicator().sendNormalServerMessage("Thank you! Here is your token.");
+					}
 					
 					// Process the conversion.
-					ExchangeAction.exchangeMountForToken(resp, mount);
+					for (Creature creat : animals)
+					{
+						ExchangeAction.exchangeAnimalForToken(resp, creat);
+					}
 				}
 				else
 				{
@@ -87,21 +105,33 @@ public class ExchangeMountQuestion extends Question
 	{
 		// Convenience
 		Creature resp = this.getResponder();
+		Economy econ = Economy.getEconomy();
 		
 		// Determine how much money the responder (player) has and convert to Change.
 		final long rBankAmountIrons = resp.getMoney();
-		final Change rBankAmount = Economy.getEconomy().getChangeFor(rBankAmountIrons);
+		final Change rBankAmount = econ.getChangeFor(rBankAmountIrons);
 
 		// Come up with message.
         final StringBuilder content = new StringBuilder();
         content.append(this.getBmlHeader());
         content.append("text{text='Well met " + resp.getName() + "!'}text{text=''}");
-        content.append("text{text='I can help you turn your mount into a token so you can load it on a "
-        		+ "ship and take it with you on your journey. For this amazing feat I only charge " + 
-        		this.exchangeMountCost.getChangeShortString() + "'}text{text=''}");
-		
+        if (numAnimals > 1)
+        {
+        	content.append("text{text='I can help you turn your led animal into a token so you can load it on a "
+        		+ "ship and take it with you on your journey.");
+        }
+        else
+        {
+        	content.append("text{text='I can help you turn your led animals into tokens so you can load them "
+        			+ "on a ship and take them with you on your journey.");
+        }
+        content.append(" For this amazing feat I only charge " + 
+        		this.exchangeAnimalCost.getChangeShortString() + " per animal.'}text{text=''}");
+       	content.append("text{text='Given that you have " + numAnimals + " animals, this will cost you "
+        			+ totalCost.getChangeShortString() + "'}text{text=''}");
+        
         // See if they have enough.
-        if (rBankAmountIrons < this.exchangeMountCostIrons)
+        if (rBankAmountIrons < totalCostIrons)
         {
         	String rBankAmountString = "";
         	if (rBankAmountIrons == 0L)
@@ -123,7 +153,14 @@ public class ExchangeMountQuestion extends Question
         	// they want to proceed.
             content.append("text{text='You currently have " + rBankAmount.getChangeShortString() + 
             		"in your bank.'}text{text=''}");
-            content.append("text{type='italic';text='Would you like to exchange your mount for a token?'}");
+            if (numAnimals > 1)
+            {
+                content.append("text{type='italic';text='Would you like to exchange your led animals for tokens?'}");
+            }
+            else
+            {
+                content.append("text{type='italic';text='Would you like to exchange your led animal for a token?'}");
+            }
             content.append("radio{ group='" + answerGroup + "'; id='true';text='Yes'}");
             content.append("radio{ group='" + answerGroup + "'; id='false';text='No';selected='true'}");
             content.append(this.createAnswerButton2());

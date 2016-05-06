@@ -31,9 +31,9 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 	private static Logger logger = Logger.getLogger(LoadTokenAction.class.getName());
 
 	// Configuration
-	private final int mountTokenId;
+	private final int animalTokenId;
 	private final boolean enableSmallBoatsLoad;
-	private static final String actionString = "Load mount token";
+	private static final String actionString = "Load animal token";
 	private static final String actionVerb = "loading";
 	private static final int[] actionTypes = new int [] 
 			{
@@ -46,9 +46,9 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 	private final ActionEntry actionEntry;
 	
 
-	public LoadTokenAction(int mountTokenId, boolean enableSmallBoatsLoad) 
+	public LoadTokenAction(int animalTokenId, boolean enableSmallBoatsLoad) 
 	{
-		this.mountTokenId = mountTokenId;
+		this.animalTokenId = animalTokenId;
 		this.enableSmallBoatsLoad = enableSmallBoatsLoad;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, actionString, actionVerb, actionTypes);
@@ -71,7 +71,7 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 	public List<ActionEntry> getBehavioursFor(Creature performer, Item subject, Item target) 
 	{
 		if ((performer instanceof Player) && 
-				(subject.getTemplateId() == mountTokenId) &&
+				(subject.getTemplateId() == animalTokenId) &&
 				((target.isBoat()))) 
 		{
 			return Arrays.asList(actionEntry);
@@ -94,28 +94,28 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 		// Make sure there is space on the boat.
 		if (!target.hasSpaceFor(source.getVolume()))
 		{
-			performer.getCommunicator().sendNormalServerMessage("There is no enough space to load the mount token on the boat.");
+			performer.getCommunicator().sendNormalServerMessage("There is no enough space to load the animal token on the boat.");
 			return true;
 		}
 		
 		// Make sure the boat doesn't already have max inventory items.
 		if (!target.mayCreatureInsertItem())
 		{
-			performer.getCommunicator().sendNormalServerMessage("There is no room to load the mount token on the boat.");
+			performer.getCommunicator().sendNormalServerMessage("There is no room to load the animal token on the boat.");
 			return true;
 		}
 		
 		// Make sure source item is a token 
-		if (source.getTemplateId() != mountTokenId)
+		if (source.getTemplateId() != animalTokenId)
 		{
-			performer.getCommunicator().sendNormalServerMessage("You must activate your mount token to load it on the boat.");
+			performer.getCommunicator().sendNormalServerMessage("You must activate your animal token to load it on the boat.");
 			return true;
 		}
 		
 		// Make sure target item is a boat.
 		if (!target.isBoat())
 		{
-			performer.getCommunicator().sendNormalServerMessage("Mount tokens can only be loaded on boats.");
+			performer.getCommunicator().sendNormalServerMessage("Animal tokens can only be loaded on boats.");
 			return true;
 		}
 		
@@ -123,7 +123,7 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 		if (!this.enableSmallBoatsLoad && ((target.getTemplateId() == ItemList.boatRowing) || 
 										   (target.getTemplateId() == ItemList.boatSailing)))
 		{
-			performer.getCommunicator().sendNormalServerMessage("Mount tokens can only be loaded on boats larger than rowboats and sailboats.");
+			performer.getCommunicator().sendNormalServerMessage("Animal tokens can only be loaded on boats larger than rowboats and sailboats.");
 			return true;
 		}
 		
@@ -150,11 +150,11 @@ public class LoadTokenAction implements ModAction, BehaviourProvider, ActionPerf
 			// Check if the load worked.
 			if (result)
 			{
-				performer.getCommunicator().sendNormalServerMessage("You load your mount token onto the boat.");
+				performer.getCommunicator().sendNormalServerMessage("You load your animal token onto the boat.");
 			}
 			else
 			{
-				performer.getCommunicator().sendNormalServerMessage("You fail to load your mount token onto the boat.");
+				performer.getCommunicator().sendNormalServerMessage("You fail to load your animal token onto the boat.");
 			}
 			return true;
 		} catch (NoSuchItemException e)

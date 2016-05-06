@@ -15,7 +15,7 @@ import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemFactory;
 import com.wurmonline.server.players.Player;
-import com.wurmonline.server.questions.ExchangeMountQuestion;
+import com.wurmonline.server.questions.ExchangeAnimalQuestion;
 
 // From Ago's modloader
 import org.gotti.wurmunlimited.modsupport.actions.ActionPerformer;
@@ -35,31 +35,31 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	
 	// Constants
 	private static final int HORSE_TEMPLATE_ID = 64;
-	private static final float MOUNT_TOKEN_QUALITY = 100.0f;
+	private static final float ANIMAL_TOKEN_QUALITY = 100.0f;
 	
 	// Configuration
-	private static int mountTokenId;
+	private static int animalTokenId;
 	private final int stableMasterId;
-	private static int mountTokenMinimumWeightGrams;
-	private static int mountTokenMaximumWeightGrams;
-	private final int exchangeMountCostIrons;
+	private static int animalTokenMinimumWeightGrams;
+	private static int animalTokenMaximumWeightGrams;
+	private final int exchangeAnimalCostIrons;
 	private final boolean enableNoNpcExchange;
 	
 	// Action data
 	private final short actionId;
 	private final ActionEntry actionEntry;
 
-	public ExchangeAction(int mountTokenId, int stableMasterId, int mountTokenMinimumWeightGrams, 
-			int mountTokenMaximumWeightGrams, int exchangeMountCostIrons, boolean enableNoNpcExchange) 
+	public ExchangeAction(int animalTokenId, int stableMasterId, int animalTokenMinimumWeightGrams, 
+			int animalTokenMaximumWeightGrams, int exchangeAnimalCostIrons, boolean enableNoNpcExchange) 
 	{
-		ExchangeAction.mountTokenId = mountTokenId;
+		ExchangeAction.animalTokenId = animalTokenId;
 		this.stableMasterId = stableMasterId;
-		ExchangeAction.mountTokenMinimumWeightGrams = mountTokenMinimumWeightGrams;
-		ExchangeAction.mountTokenMaximumWeightGrams = mountTokenMaximumWeightGrams;
-		this.exchangeMountCostIrons = exchangeMountCostIrons;
+		ExchangeAction.animalTokenMinimumWeightGrams = animalTokenMinimumWeightGrams;
+		ExchangeAction.animalTokenMaximumWeightGrams = animalTokenMaximumWeightGrams;
+		this.exchangeAnimalCostIrons = exchangeAnimalCostIrons;
 		this.enableNoNpcExchange = enableNoNpcExchange;
 		actionId = (short) ModActions.getNextActionId();
-		actionEntry = ActionEntry.createEntry(actionId, "Exchange mount", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
+		actionEntry = ActionEntry.createEntry(actionId, "Exchange animal", "exchanging", new int[] { 0 /* ACTION_TYPE_QUICK */, 48 /* ACTION_TYPE_ENEMY_ALWAYS */, 37 /* ACTION_TYPE_NEVER_USE_ACTIVE_ITEM */});
 		ModActions.registerAction(actionEntry);
 	}
 
@@ -82,8 +82,8 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 	@Override
 	public List<ActionEntry> getBehavioursFor(Creature performer, Creature target) 
 	{
-		// If we are configured to allow direct exchanges for no cost check if this is a mount.
-		// TODO: Update this to be any mount and not just horses and hell horses.
+		// If we are configured to allow direct exchanges for no cost check if this is an animal.
+		// TODO: Update this to be any animal and not just horses and hell horses.
 		if (this.enableNoNpcExchange && (performer instanceof Player) && 
 				((target.getTemplate().getTemplateId() == HORSE_TEMPLATE_ID) || 
 				 target.getTemplate().isHellHorse())) 
@@ -123,15 +123,15 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
         }
         
         // Check max weight of player
-        if (!performer.canCarry(getMountTokenWeight(target)))
+        if (!performer.canCarry(getAnimalTokenWeight(target)))
         {
-            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the mount token. You need to drop some things first.");
+            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the animal token. You need to drop some things first.");
             return true;
         }
 
         // Get the creature we're trying to exchange. For now if using the Stable Master this needs to be
-        // ridden. If this is a mount and we're configured to allow NPC-less control then let it go ahead.
-        Creature mount = null;
+        // ridden. If this is an animal and we're configured to allow NPC-less control then let it go ahead.
+        Creature animal = null;
 		if ((target.getTemplate().getTemplateId() == stableMasterId) && performer.isVehicleCommander())
 		{
 			Vehicle pVehicle = Vehicles.getVehicleForId(performer.getVehicle());
@@ -139,35 +139,35 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 			{
 				try
 				{
-					mount = Creatures.getInstance().getCreature(performer.getVehicle());
+					animal = Creatures.getInstance().getCreature(performer.getVehicle());
 					
 					// Ask user to pay.
-					final ExchangeMountQuestion eQuestion = new ExchangeMountQuestion(performer, mount, exchangeMountCostIrons);
+					final ExchangeAnimalQuestion eQuestion = new ExchangeAnimalQuestion(performer, new Creature[] {animal}, exchangeAnimalCostIrons);
 					eQuestion.sendQuestion();
 					return true;
 				} catch (NoSuchCreatureException e)
 				{
-					logger.log(Level.WARNING, "Attempted to get mount Creature object and failed. " + e.getMessage(), e);
+					logger.log(Level.WARNING, "Attempted to get animal Creature object and failed. " + e.getMessage(), e);
 				}
                 
 			}
 		}
 
-		// If we're configured to allow direct exchanges for no cost check if this is a mount.
-		// TODO: Add checks for more mount types.
+		// If we're configured to allow direct exchanges for no cost check if this is an animal.
+		// TODO: Add checks for more animal types.
 		if (this.enableNoNpcExchange && target.isHorse())
         {
-			mount = target;
+			animal = target;
         }
 		
-		if (mount == null)
+		if (animal == null)
 		{
         	performer.getCommunicator().sendNormalServerMessage("Nothing to exchange!");
 			return true;
 		}
         
 		// Do the exchange
-		exchangeMountForToken(performer, mount);
+		exchangeAnimalForToken(performer, animal);
 		return true;
 	}
 
@@ -177,42 +177,42 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
 		return action(action, performer, target, num, counter);
 	}
 
-	public static void exchangeMountForToken(final Creature performer, final Creature mount)
+	public static void exchangeAnimalForToken(final Creature performer, final Creature animal)
 	{
         try 
 		{
-			// Create new redemption token from mount.
-			Item mountToken = ItemFactory.createItem(ExchangeAction.mountTokenId, 
-					MOUNT_TOKEN_QUALITY, performer.getName());
-			mountToken.setDescription(getMountDescription(mount));
-			mountToken.setName(getMountName(mount));
-			mountToken.setData(mount.getWurmId());
-			mountToken.setWeight(getMountTokenWeight(mount), false);
-			mountToken.setLastOwnerId(performer.getWurmId());
-			mountToken.setFemale(mount.getSex() == 1);
+			// Create new animal token from animal.
+			Item animalToken = ItemFactory.createItem(ExchangeAction.animalTokenId, 
+					ANIMAL_TOKEN_QUALITY, performer.getName());
+			animalToken.setDescription(getAnimalDescription(animal));
+			animalToken.setName(getAnimalName(animal));
+			animalToken.setData(animal.getWurmId());
+			animalToken.setWeight(getAnimalTokenWeight(animal), false);
+			animalToken.setLastOwnerId(performer.getWurmId());
+			animalToken.setFemale(animal.getSex() == 1);
 
 			// Add token to player's inventory.
-			performer.getInventory().insertItem(mountToken, true);
+			performer.getInventory().insertItem(animalToken, true);
 			
-			// Remove mount from world.
-			CreatureHelper.hideCreature(mount);
+			// Remove animal from world.
+			CreatureHelper.hideCreature(animal);
 
 			// Let the player know.
-			performer.getCommunicator().sendNormalServerMessage("You exchange your mount with the stable master for a mount token." );
+			performer.getCommunicator().sendNormalServerMessage("You exchange your animal with the stable master for an animal token." );
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage(), e);
 		}
 	}
 	
-	private static int getMountTokenWeight(Creature mount)
+	private static int getAnimalTokenWeight(Creature animal)
 	{
-		int calculatedMountWeight = (int) mount.getStatus().getBody().getWeight(mount.getStatus().fat);
-		int mountTokenWeight = Math.min(mountTokenMaximumWeightGrams, 
-				Math.max(mountTokenMinimumWeightGrams, calculatedMountWeight));
-		return mountTokenWeight;
+		int calculatedAnimalWeight = (int) animal.getStatus().getBody().getWeight(animal.getStatus().fat);
+		int animalTokenWeight = Math.min(animalTokenMaximumWeightGrams, 
+				Math.max(animalTokenMinimumWeightGrams, calculatedAnimalWeight));
+		return animalTokenWeight;
 	}
 	
-	private static String getMountDescription(Creature target)
+	private static String getAnimalDescription(Creature target)
 	{
 		String toReturn = target.getStatus().getAgeString().toLowerCase() + " ";
         if(target.getTemplate().getTemplateId() == HORSE_TEMPLATE_ID) 
@@ -245,9 +245,9 @@ public class ExchangeAction implements ModAction, BehaviourProvider, ActionPerfo
         return toReturn;
 	}
 
-	private static String getMountName(Creature target)
+	private static String getAnimalName(Creature target)
 	{
-		String toReturn = "mount token";
+		String toReturn = "animal token";
         return toReturn;
 	}
 }

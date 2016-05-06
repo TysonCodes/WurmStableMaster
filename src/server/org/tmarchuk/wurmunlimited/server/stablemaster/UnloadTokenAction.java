@@ -32,8 +32,8 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
 	private static Logger logger = Logger.getLogger(UnloadTokenAction.class.getName());
 
 	// Configuration
-	private final int mountTokenId;
-	private static final String actionString = "Unload mount token";
+	private final int animalTokenId;
+	private static final String actionString = "Unload animal token";
 	private static final String actionVerb = "unloading";
 	private static final int[] actionTypes = new int [] 
 			{
@@ -47,9 +47,9 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
 	private final ActionEntry actionEntry;
 	
 
-	public UnloadTokenAction(int mountTokenId) 
+	public UnloadTokenAction(int animalTokenId) 
 	{
-		this.mountTokenId = mountTokenId;
+		this.animalTokenId = animalTokenId;
 		actionId = (short) ModActions.getNextActionId();
 		actionEntry = ActionEntry.createEntry(actionId, actionString, actionVerb, actionTypes);
 		ModActions.registerAction(actionEntry);
@@ -73,7 +73,7 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
 		try
 		{
 			if ((performer instanceof Player) && 
-					(target.getTemplateId() == mountTokenId) && (target.getParent().isBoat())) 
+					(target.getTemplateId() == animalTokenId) && (target.getParent().isBoat())) 
 			{
 				return Arrays.asList(actionEntry);
 			} 
@@ -113,7 +113,7 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
         // Check max weight of player
         if (!performer.canCarry(target.getWeightGrams()))
         {
-            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the mount token. You need to drop some things first.");
+            performer.getCommunicator().sendNormalServerMessage("You would not be able to carry the animal token. You need to drop some things first.");
             return true;
         }
 
@@ -128,9 +128,9 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
 			}
 
 			// Make sure target item is a token 
-			if ((target.getTemplateId() != mountTokenId) || (!target.getParent().isBoat()))
+			if ((target.getTemplateId() != animalTokenId) || (!target.getParent().isBoat()))
 			{
-				performer.getCommunicator().sendNormalServerMessage("You must select a mount token on a boat to unload it from a boat.");
+				performer.getCommunicator().sendNormalServerMessage("You must select a animal token on a boat to unload it from a boat.");
 				return true;
 			}
 			
@@ -138,11 +138,11 @@ public class UnloadTokenAction implements ModAction, BehaviourProvider, ActionPe
 			boolean result = target.moveToItem(performer, performer.getInventory().getWurmId(), true);
 			if (result)
 			{
-				performer.getCommunicator().sendNormalServerMessage("You unload your mount token from the boat.");
+				performer.getCommunicator().sendNormalServerMessage("You unload your animal token from the boat.");
 			}
 			else
 			{
-				performer.getCommunicator().sendNormalServerMessage("You fail to unload your mount token from the boat.");
+				performer.getCommunicator().sendNormalServerMessage("You fail to unload your animal token from the boat.");
 			}
 			return true;
 		} catch (NoSuchItemException | NoSuchPlayerException | NoSuchCreatureException e)

@@ -19,14 +19,14 @@ to have to go exploring on a boat and still have a horse when I got there.
 * Adds a new NPC to the game, Stable Master.
   * By default the Stable Master is assigned an auto-generated template ID. This can be overridden to set a specific
   ID by setting "specifyStableMasterId=true" and setting the ID as "stableMasterId=".
-* You can right-click the Stable Master while riding a mount and use the "Exchange mount" action to have the mount exchanged for a Mount Token.
-  * There is a fee (configurable) associated with exchanging the mount into a Mount Token.
-  * The Mount Token weighs what the mount weighs (which can be excessive). There are configuration options to limit this to a minimum ("mountTokenMinimumWeightGrams") and a maximum ("mountTokenMaximumWeightGrams") value. Note that the maximum is applied after the minimum in case the minimum is larger than the maximum.
-  * The Mount Token takes up the volume of a corpse by default but is configurable (X, Y, Z in centimeters.)
-  * By default the Mount Token is assigned an auto-generated template ID. This can be overridden to set a specific
-  ID by setting "specifyMountTokenId=true" and setting the ID as "mountTokenId=".
-* You can right-click on the Mount Token and use the "Redeem mount token" action to turn the token back into a mount at your current location.
-* The Mount Token can be loaded onto boats by activating the token, right-clicking the boat and selecting the "Load mount token" action.
+* You can right-click the Stable Master while leading one or more animals and use the "Exchange animal" action to have the animals exchanged for Animal Tokens.
+  * There is a fee (configurable) associated with exchanging each animal into an Animal Token.
+  * The Animal Token weighs what the animal weighs (which can be excessive). There are configuration options to limit this to a minimum ("animalTokenMinimumWeightGrams") and a maximum ("animalTokenMaximumWeightGrams") value. Note that the maximum is applied after the minimum in case the minimum is larger than the maximum.
+  * The Animal Token takes up the volume of a corpse by default but is configurable (X, Y, Z in centimeters.)
+  * By default the Animal Token is assigned an auto-generated template ID. This can be overridden to set a specific
+  ID by setting "specifyAnimalTokenId=true" and setting the ID as "animalTokenId=".
+* You can right-click on the Animal Token and use the "Redeem animal token" action to turn the token back into a animal at your current location.
+* The Animal Token can be loaded onto boats by activating the token, right-clicking the boat and selecting the "Load animal token" action.
   * By default the token cannot be loaded onto rowboats or sailboats but this is configurable with 'enableSmallBoatsLoad=true'.
-* The Mount Token can be unloaded from a boat by right-clicking on the token in the boat inventory and selecting the "Unload mount token" action.
-* Disabled by default, there is an option to enable directly right-clicking on a mount and using the "Exchange mount" action for no cost. To enable set "enableNoNpcExchange=true"
+* The Animal Token can be unloaded from a boat by right-clicking on the token in the boat inventory and selecting the "Unload animal token" action.
+* Disabled by default, there is an option to enable directly right-clicking on a led animal and using the "Exchange animal" action for no cost. To enable set "enableNoNpcExchange=true"
