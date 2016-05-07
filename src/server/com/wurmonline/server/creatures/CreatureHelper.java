@@ -1,6 +1,8 @@
 package com.wurmonline.server.creatures;
 
 
+import com.wurmonline.server.DbConnector;
+import com.wurmonline.server.FailedException;
 import com.wurmonline.server.Items;
 
 /**
@@ -20,15 +22,17 @@ import com.wurmonline.server.creatures.Creature;
 import com.wurmonline.server.creatures.CreatureStatus;
 import com.wurmonline.server.creatures.Creatures;
 import com.wurmonline.server.creatures.Offspring;
+import com.wurmonline.server.intra.IntraServerConnection;
 import com.wurmonline.server.intra.PlayerTransfer;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
+import com.wurmonline.server.items.NoSuchTemplateException;
 import com.wurmonline.server.skills.Skill;
 import com.wurmonline.server.skills.Skills;
-import com.wurmonline.server.skills.SkillsFactory;
 import com.wurmonline.server.structures.NoSuchStructureException;
 import com.wurmonline.server.structures.Structure;
 import com.wurmonline.server.structures.Structures;
+import com.wurmonline.server.utils.DbUtilities;
 
 //From Ago's modloader
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
@@ -38,6 +42,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.logging.Logger;
 import java.util.Set;
 import java.util.logging.Level;
@@ -324,6 +331,7 @@ public class CreatureHelper
 				outputStream.writeDouble(curSkill.getKnowledge());
 				outputStream.writeDouble(curSkill.getMinimumValue());
 				outputStream.writeLong(curSkill.lastUsed);
+				outputStream.writeLong(curSkill.id);
 			}
 		}
 		
@@ -352,7 +360,10 @@ public class CreatureHelper
 	public static void fromStream(DataInputStream inputStream, float posx, float posy, float posz,
 			Set<ItemMetaData> createdItems, boolean frozen) throws IOException
 	{
-		// Get Offspring and add if necessary.
+        Connection dbcon = null;
+        PreparedStatement ps = null;
+
+        // Get Offspring and add if necessary.
 		boolean hasBaby = inputStream.readBoolean();
 		if (hasBaby)
 		{
@@ -469,73 +480,129 @@ public class CreatureHelper
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
 		
-		// TODO: Get skills and set for creature.
-		int numSkills = inputStream.readInt();
-		int curSkillNum;
-		double curSkillValue;
-		double curSkillMinValue;
-		long curSkillLastUsed;
-		Skills.fillCreatureTempSkills(animal);
-		for (int skillNo = 0; skillNo < numSkills; skillNo++)
+		// Get skills and set for creature.
+		try
 		{
-			curSkillNum = inputStream.readInt();
-			curSkillValue = inputStream.readDouble();
-			curSkillMinValue = inputStream.readDouble();
-			curSkillLastUsed = inputStream.readLong();
-			// TODO: Maybe just write this to the DB directly and then use DbSkills.load()?
-//            final DbSkill skill = new DbSkill(rs.getLong("ID"), this, rs.getInt("NUMBER"), rs.getDouble("VALUE"), rs.getDouble("MINVALUE"), rs.getLong("LASTUSED"));
-//            this.skills.put(skill.getNumber(), skill);
+			int numSkills = inputStream.readInt();
+			int curSkillNum;
+			double curSkillValue;
+			double curSkillMinValue;
+			long curSkillLastUsed;
+			long curSkillId;
+			Skills.fillCreatureTempSkills(animal);
+	        dbcon = DbConnector.getCreatureDbCon();
+	        ps = dbcon.prepareStatement("insert into SKILLS (VALUE, LASTUSED, MINVALUE, NUMBER, OWNER,ID) values(?,?,?,?,?,?)");
+			for (int skillNo = 0; skillNo < numSkills; skillNo++)
+			{
+				// Read skill information from input stream
+				curSkillNum = inputStream.readInt();
+				curSkillValue = inputStream.readDouble();
+				curSkillMinValue = inputStream.readDouble();
+				curSkillLastUsed = inputStream.readLong();
+				curSkillId = inputStream.readLong();
+				
+				// Write to database
+				ps.setDouble(1, curSkillValue);
+				ps.setLong(2, curSkillLastUsed);
+				ps.setDouble(3, curSkillMinValue);
+				ps.setInt(4, curSkillNum);
+				ps.setLong(5, animal.getWurmId());
+				ps.setLong(6, curSkillId);
+		        ps.execute();
+			}
+			animal.skills.load();
+		} catch (Exception e)
+		{
+            logger.log(Level.WARNING, e.getMessage(), e);
 		}
-//		for (Skill curSkill : animalSkills)
-//		{
-//			if (!curSkill.isTemporary())
-//			{
-//				outputStream.writeInt(curSkill.getNumber());
-//				outputStream.writeDouble(curSkill.getKnowledge());
-//				outputStream.writeDouble(curSkill.getMinimumValue());
-//				outputStream.writeLong(curSkill.lastUsed);
-//			}
-//		}
+		finally
+		{
+			// Cleanup database connection. 
+            DbUtilities.closeDatabaseObjects(ps, null); 
+            DbConnector.returnConnection(dbcon); 
+		}
 		
-		// TODO: Save creature.
-		// TODO: Need to call a bunch of extra functions because the initial save doesn't save everything.
+		// Create body parts.
+		try
+		{
+			animal.getBody().createBodyParts();
+		} catch (FailedException | NoSuchTemplateException e)
+		{
+            logger.log(Level.WARNING, e.getMessage(), e);
+		}
 		
-		// TODO: Still need to do a lot of processing on the creature.
-		/*
-        toReturn.loadSkills();
-        toReturn.createPossessions();
-        toReturn.getBody().createBodyParts();
-        if (!toReturn.isAnimal() && createPossessions) {
-            createBasicItems(toReturn);
-            toReturn.wearItems();
-        }
-        if ((toReturn.isHorse() || toReturn.getTemplate().isBlackOrWhite) && Server.rand.nextInt(10) == 0) {
-            setRandomColor(toReturn);
-        }
-        Creatures.getInstance().sendToWorld(toReturn);
-        toReturn.createVisionArea();
-        toReturn.save();
-        if (reborn) {
-            toReturn.getStatus().setReborn(true);
-        }
-        if (ctype != 0) {
-            toReturn.getStatus().setType(ctype);
-        }
-        toReturn.getStatus().setKingdom(kingdom);
-        if (kingdom == 3) {
-            toReturn.setAlignment(-50.0f);
-            toReturn.setDeity(Deities.getDeity(4));
-            toReturn.setFaith(1.0f);
-        }
-        Server.getInstance().broadCastAction(String.valueOf(toReturn.getName()) + " has arrived.", toReturn, 10);
-        if (toReturn.isUnique()) {
-            Server.getInstance().broadCastSafe("Rumours of " + toReturn.getName() + " is starting to spread.");
-            Servers.localServer.spawnedUnique();
-        }
-        return toReturn;
-*/
-		// TODO: Process creature items.
+		// Save creature to database.
+		try
+		{
+			dbcon = DbConnector.getCreatureDbCon();
+	        ps = dbcon.prepareStatement("insert into CREATURES (WURMID, NAME, TEMPLATENAME, SEX, "
+	        	+ "CENTIMETERSHIGH, CENTIMETERSLONG, CENTIMETERSWIDE, INVENTORYID, BODYID, BUILDINGID, "
+	        	+ "STAMINA, HUNGER, NUTRITION, THIRST, DEAD, STEALTH, KINGDOM, AGE, LASTPOLLEDAGE, FAT, "
+	        	+ "TRAITS, DOMINATOR, MOTHER, FATHER, REBORN, LOYALTY, LASTPOLLEDLOYALTY, OFFLINE, STAYONLINE, "
+	        	+ "DETECTIONSECS, DISEASE, LASTGROOMED, VEHICLE, TYPE, PETNAME, "
+	        	+ ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+	        	+ "?, ?, ?, ?, ?, ?, ?, ?, ?)");
+	        ps.setLong(1, animal.getWurmId());
+	        ps.setString(2, animal.getName());
+	        ps.setString(3, animal.getTemplate().getName());
+	        ps.setByte(4, animal.getSex());
+	        ps.setShort(5, animal.getCentimetersHigh());
+	        ps.setShort(6, animal.getCentimetersLong());
+	        ps.setShort(7, animal.getCentimetersWide());
+	        ps.setLong(8, animal.getInventory().getWurmId());
+	        ps.setLong(9, animal.getBody().getId());
+	        ps.setLong(10, animal.getBuildingId());
+	        ps.setShort(11, (short) (animal.getStatus().getStamina() & 0xFFFF));
+	        ps.setShort(12, (short) (animal.getStatus().getHunger() & 0xFFFF));
+	        ps.setFloat(13, animal.getStatus().getNutritionlevel());
+			ps.setShort(14, (short) (animal.getStatus().getThirst() & 0xFFFF));
+			ps.setBoolean(15, animal.isDead());
+			ps.setBoolean(16, animal.isStealth());
+			ps.setByte(17, animal.getCurrentKingdom());
+			ps.setInt(18, animal.getStatus().age);
+			ps.setLong(19, animal.getStatus().lastPolledAge);
+			ps.setByte(20, animal.getStatus().fat);
+			ps.setLong(21, animal.getStatus().traits);
+			ps.setLong(22, animal.dominator);
+			ps.setLong(23, animal.getMother());
+			ps.setLong(24, animal.getFather());
+			ps.setBoolean(25, animal.isReborn());
+			ps.setFloat(26, animal.getLoyalty());
+			ps.setLong(27, animal.getStatus().lastPolledLoyalty);
+			ps.setBoolean(28, animal.isOffline());
+			ps.setBoolean(29, animal.isStayonline());
+			ps.setShort(30, (short) animal.getStatus().detectInvisCounter);
+			ps.setByte(31, animal.getDisease());
+			ps.setLong(32, animal.getLastGroomed());
+			ps.setLong(33, animal.getVehicle());
+			ps.setByte(34, animal.getStatus().modtype);
+			ps.setString(35, animal.petName);
+			ps.execute();
+	    } catch (SQLException e)
+		{
+            logger.log(Level.WARNING, e.getMessage(), e);
+		}
+		finally
+		{
+			// Cleanup database connection. 
+            DbUtilities.closeDatabaseObjects(ps, null); 
+            DbConnector.returnConnection(dbcon); 
+		}
 		
+		// Process creature items.
+		int numItems = inputStream.readInt();
+		for (int curItem = 0; curItem < numItems; curItem++)
+		{
+			IntraServerConnection.createItem(inputStream, posx, posy, posz, createdItems, frozen);
+		}
+		
+		// TODO: Load items for creature.
+		// Can't use Items.loadAllItemsForNonPlayer(animal, animal.getStatus().getInventoryId()) because
+		// items aren't yet loaded and this only works when initially loading everything because there is a 
+		// previous call to Items.loadAllCreatureItems() that populates the correct memory for creature items
+		// that this function uses.
+		// My guess is that a reload of the server will work but that seems excessive. Future effort.
+        
 	}
 
 	// Helpers to work with private methods/fields.
