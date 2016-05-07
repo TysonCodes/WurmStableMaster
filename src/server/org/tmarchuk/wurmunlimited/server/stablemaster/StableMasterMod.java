@@ -266,7 +266,8 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                 		float posx = (float) args[1];
                                 		float posy = (float) args[2];
                                 		float posz = (float) args[3];
-	                                	Set<ItemMetaData> createdItems = (Set<ItemMetaData>) args[4];
+                                		@SuppressWarnings("unchecked")
+										Set<ItemMetaData> createdItems = ((Set<ItemMetaData>) args[4]);
 	                                	boolean frozen = (boolean) args[5];
 	                                	
 	                                	// Call base version.

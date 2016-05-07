@@ -24,6 +24,8 @@ import com.wurmonline.server.intra.PlayerTransfer;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
 import com.wurmonline.server.skills.Skill;
+import com.wurmonline.server.skills.Skills;
+import com.wurmonline.server.skills.SkillsFactory;
 import com.wurmonline.server.structures.NoSuchStructureException;
 import com.wurmonline.server.structures.Structure;
 import com.wurmonline.server.structures.Structures;
@@ -254,9 +256,9 @@ public class CreatureHelper
 		if (baby != null)
 		{
 			outputStream.writeBoolean(true);
-			outputStream.writeLong(getPrivateLong(baby, "mother"));
-			outputStream.writeLong(getPrivateLong(baby, "father"));
-			outputStream.writeLong(getPrivateLong(baby, "traits"));
+			outputStream.writeLong(baby.getMother());
+			outputStream.writeLong(baby.getFather());
+			outputStream.writeLong(baby.getTraits());
 			outputStream.writeByte((byte) baby.getDaysLeft());
 		}
 		else
@@ -361,11 +363,12 @@ public class CreatureHelper
 			new Offspring(mother, father, traits, daysLeft, false);
 		}
 		
-		// TODO: Get creature data and create creature.
+		// Get creature data and create creature.
 		long creatureId = inputStream.readLong();
+		Creature animal = null;
 		try
 		{
-			Creature animal = new Creature(creatureId);
+			animal = new Creature(creatureId);
 			animal.setName(inputStream.readUTF());
 			animal.getStatus().template = CreatureTemplateFactory.getInstance().getTemplate(inputStream.readUTF());
 			animal.template = animal.getStatus().template;
@@ -453,6 +456,8 @@ public class CreatureHelper
 	                }
 	                animal.getStatus().modtype = inputStream.readByte();
 	                animal.setPetName(inputStream.readUTF());
+	                animal.loadTemplate();
+	                Creatures.getInstance().addCreature(animal, false, false);
 	            }
 	            catch (NoSuchItemException nsi) 
 	            {
@@ -464,8 +469,39 @@ public class CreatureHelper
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
 		
+		// TODO: Get skills and set for creature.
+		int numSkills = inputStream.readInt();
+		int curSkillNum;
+		double curSkillValue;
+		double curSkillMinValue;
+		long curSkillLastUsed;
+		Skills.fillCreatureTempSkills(animal);
+		for (int skillNo = 0; skillNo < numSkills; skillNo++)
+		{
+			curSkillNum = inputStream.readInt();
+			curSkillValue = inputStream.readDouble();
+			curSkillMinValue = inputStream.readDouble();
+			curSkillLastUsed = inputStream.readLong();
+			// TODO: Maybe just write this to the DB directly and then use DbSkills.load()?
+//            final DbSkill skill = new DbSkill(rs.getLong("ID"), this, rs.getInt("NUMBER"), rs.getDouble("VALUE"), rs.getDouble("MINVALUE"), rs.getLong("LASTUSED"));
+//            this.skills.put(skill.getNumber(), skill);
+		}
+//		for (Skill curSkill : animalSkills)
+//		{
+//			if (!curSkill.isTemporary())
+//			{
+//				outputStream.writeInt(curSkill.getNumber());
+//				outputStream.writeDouble(curSkill.getKnowledge());
+//				outputStream.writeDouble(curSkill.getMinimumValue());
+//				outputStream.writeLong(curSkill.lastUsed);
+//			}
+//		}
+		
+		// TODO: Save creature.
+		// TODO: Need to call a bunch of extra functions because the initial save doesn't save everything.
+		
+		// TODO: Still need to do a lot of processing on the creature.
 		/*
-        Creatures.getInstance().addCreature(toReturn, false, false);
         toReturn.loadSkills();
         toReturn.createPossessions();
         toReturn.getBody().createBodyParts();
@@ -498,10 +534,6 @@ public class CreatureHelper
         }
         return toReturn;
 */
-		// TODO: Get skills and set for creature.
-		
-		// TODO: Save creature.
-		
 		// TODO: Process creature items.
 		
 	}
@@ -519,20 +551,5 @@ public class CreatureHelper
 		{
 			logger.log(Level.WARNING, ((Creature) obj).getName() + ":" + e.getMessage(), e);
 		}
-	}
-	
-	private static long getPrivateLong(Object obj, String fieldName)
-	{
-		long toReturn = MiscConstants.NOID;
-		try
-		{
-			Field field = ReflectionUtil.getField(obj.getClass(), fieldName);
-			toReturn = ReflectionUtil.getPrivateField(obj, field);
-		} catch (NoSuchFieldException | IllegalArgumentException | IllegalAccessException | ClassCastException e)
-		{
-			logger.log(Level.WARNING, "Unable to get private field " + fieldName + " from object of type "
-					+ obj.getClass().getName() + ":" + e.getMessage(), e);
-		}
-		return toReturn;
 	}
 }
