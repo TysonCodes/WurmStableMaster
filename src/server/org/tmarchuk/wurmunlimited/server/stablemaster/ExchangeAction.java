@@ -8,6 +8,7 @@ package org.tmarchuk.wurmunlimited.server.stablemaster;
 import com.wurmonline.server.behaviours.Action;
 import com.wurmonline.server.behaviours.ActionEntry;
 import com.wurmonline.server.creatures.Creature;
+import com.wurmonline.server.creatures.CreatureHelper;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemFactory;
 import com.wurmonline.server.players.Player;

@@ -10,6 +10,7 @@ import com.wurmonline.shared.constants.ItemMaterials;
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.BehaviourList;
 import com.wurmonline.server.creatures.Creature;
+import com.wurmonline.server.creatures.CreatureHelper;
 import com.wurmonline.server.creatures.Creatures;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
