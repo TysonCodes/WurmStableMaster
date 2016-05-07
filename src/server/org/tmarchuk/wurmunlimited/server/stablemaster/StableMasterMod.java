@@ -9,11 +9,18 @@ import com.wurmonline.shared.constants.ItemMaterials;
 
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.BehaviourList;
+import com.wurmonline.server.creatures.Creature;
+import com.wurmonline.server.creatures.Creatures;
+import com.wurmonline.server.items.Item;
+import com.wurmonline.server.items.ItemMetaData;
 import com.wurmonline.server.items.ItemTemplateFactory;
 import static com.wurmonline.server.items.ItemTypes.*;
 import com.wurmonline.server.MiscConstants;
 
 // From Ago's modloader
+import org.gotti.wurmunlimited.modloader.classhooks.HookException;
+import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
+import org.gotti.wurmunlimited.modloader.classhooks.InvocationHandlerFactory;
 import org.gotti.wurmunlimited.modloader.interfaces.Configurable;
 import org.gotti.wurmunlimited.modloader.interfaces.Initable;
 import org.gotti.wurmunlimited.modloader.interfaces.ItemTemplatesCreatedListener;
@@ -25,9 +32,20 @@ import org.gotti.wurmunlimited.modsupport.IdType;
 import org.gotti.wurmunlimited.modsupport.actions.ModActions;
 import org.gotti.wurmunlimited.modsupport.creatures.ModCreatures;
 
+// Javassist
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.NotFoundException;
+import javassist.bytecode.Descriptor;
+
+import java.io.DataInputStream;
 // Base Java
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -163,6 +181,120 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 		ModCreatures.init();
 		stableMasterBuilder = new StableMaster(specifyStableMasterId, stableMasterId);
 		ModCreatures.addCreature(stableMasterBuilder);
+		
+		// Add hooks for server transfer.
+		try
+		{
+			// void com.wurmonline.server.intra.PlayerTransfer.sendItem(final Item item, final DataOutputStream dos, final boolean dragged) throws UnsupportedEncodingException, IOException
+			ClassPool classPool = HookManager.getInstance().getClassPool();
+			String descriptor;
+			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+					classPool.get("com.wurmonline.server.items.Item"), 
+					classPool.get("•java.io.DataOutputStream"),
+					CtClass.booleanType
+			});
+
+			HookManager.getInstance().registerHook("com.wurmonline.server.intra.PlayerTransfer", "sendItem", 
+				descriptor, new InvocationHandlerFactory()
+                    {
+                        @Override
+                        public InvocationHandler createInvocationHandler()
+                        {
+                            return new InvocationHandler()
+                            {
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+                                {
+                                	try
+                                	{
+	                                	// Get arguments
+	                                	Item toSend = (Item) args[0];
+	                                	DataOutputStream outputStream = (DataOutputStream) args[1];
+	                                	
+	                                	// Call base version.
+	                                	method.invoke(proxy, args);
+	                                	
+	                                	// Tack on a boolean specify whether or not this is an animal token 
+	                                	// and if true add all the associated animal data.
+	                                	if (toSend.getTemplateId() == animalTokenId)
+	                                	{
+	                                		outputStream.writeBoolean(true);
+	                                		long animalId = toSend.getData();
+	                                		Creature animal = Creatures.getInstance().getCreature(animalId);
+	                                		CreatureHelper.toStream(animal, outputStream);
+	                                	}
+	                                	else
+	                                	{
+	                                		outputStream.writeBoolean(false);
+	                                	}
+                                	} catch (IOException e)
+                                	{
+                            			logException("Failed to encode animal token.", e);
+                                        throw new RuntimeException(e);
+                                	}
+                                	return null;
+                                }
+                            };
+                        }
+                    });
+			// END - void com.wurmonline.server.intra.PlayerTransfer.sendItem(final Item item, final DataOutputStream dos, final boolean dragged) throws UnsupportedEncodingException, IOException
+			
+			// void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
+			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+					classPool.get("•java.io.DataInputStream"),
+					CtClass.floatType, CtClass.floatType, CtClass.floatType,
+					classPool.get("java.util.Set<com.wurmonline.server.items.ItemMetaData>"), 
+					CtClass.booleanType
+			});
+
+			HookManager.getInstance().registerHook("com.wurmonline.server.intra.IntraServerConnection", "createItem", 
+				descriptor, new InvocationHandlerFactory()
+                    {
+                        @Override
+                        public InvocationHandler createInvocationHandler()
+                        {
+                            return new InvocationHandler()
+                            {
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+                                {
+                                	try
+                                	{
+	                                	// Get some arguments
+                                		DataInputStream inputStream = (DataInputStream) args[0];
+                                		float posx = (float) args[1];
+                                		float posy = (float) args[2];
+                                		float posz = (float) args[3];
+	                                	Set<ItemMetaData> createdItems = (Set<ItemMetaData>) args[4];
+	                                	boolean frozen = (boolean) args[5];
+	                                	
+	                                	// Call base version.
+	                                	method.invoke(proxy, args);
+	                                	
+	                                	// Check the boolean we tacked on specifying whether or not this is an 
+	                                	// animal token and if true unpack the associated animal data.
+	                                	boolean isAnimalToken = inputStream.readBoolean();
+	                                	if (isAnimalToken)
+	                                	{
+	                                		CreatureHelper.fromStream(inputStream, posx, posy, posz, createdItems, frozen);
+	                                	}
+                                	} catch (IOException e)
+                                	{
+                            			logException("Failed to decode animal token.", e);
+                                        throw new RuntimeException(e);
+                                	}
+                                	return null;
+                                }
+                            };
+                        }
+                    });
+			// END - void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
+
+		} catch (NotFoundException e)
+		{
+            logException("Failed to create hooks for " + StableMasterMod.class.getName(), e);
+            throw new HookException(e);
+		}
 	}
 
 	@Override
@@ -181,7 +313,7 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 			short [] animalTokenItemTypes = new short[] 
 				{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
 					ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
-					ITEM_TYPE_FLOATING, ITEM_TYPE_NOTRADE, ITEM_TYPE_SERVERBOUND, ITEM_TYPE_NAMED,
+					ITEM_TYPE_FLOATING, ITEM_TYPE_NOTRADE, ITEM_TYPE_NAMED,
 					ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, 
 					ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
 				};
