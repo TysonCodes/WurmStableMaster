@@ -191,7 +191,7 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 			String descriptor;
 			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
 					classPool.get("com.wurmonline.server.items.Item"), 
-					classPool.get("•java.io.DataOutputStream"),
+					classPool.get("java.io.DataOutputStream"),
 					CtClass.booleanType
 			});
 
@@ -242,9 +242,9 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 			
 			// void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
 			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
-					classPool.get("•java.io.DataInputStream"),
+					classPool.get("java.io.DataInputStream"),
 					CtClass.floatType, CtClass.floatType, CtClass.floatType,
-					classPool.get("java.util.Set<com.wurmonline.server.items.ItemMetaData>"), 
+					classPool.get("java.util.Set"), 
 					CtClass.booleanType
 			});
 
