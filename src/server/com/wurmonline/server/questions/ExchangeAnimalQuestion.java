@@ -30,8 +30,8 @@ public class ExchangeAnimalQuestion extends Question
 	private final int numAnimals;
 	private final long totalCostIrons;
 	private final Change totalCost;
-	private static final int dialogWidth = 300;
-	private static final int dialogHeight = 300;
+	private static final int dialogWidth = 350;
+	private static final int dialogHeight = 350;
 	private static final boolean dialogResizeable = true;
 	private static final boolean dialogCloseable = true;
 	private static final int dialogRed = 200;
