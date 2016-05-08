@@ -261,6 +261,7 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                 {
                                 	try
                                 	{
+	                                	logger.log(Level.INFO, "Entering handler for 'createItem'.");
 	                                	// Get some arguments
                                 		DataInputStream inputStream = (DataInputStream) args[0];
                                 		float posx = (float) args[1];
@@ -271,13 +272,16 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                	boolean frozen = (boolean) args[5];
 	                                	
 	                                	// Call base version.
+	                                	logger.log(Level.INFO, "\tCalling base version.");
 	                                	method.invoke(proxy, args);
 	                                	
 	                                	// Check the boolean we tacked on specifying whether or not this is an 
 	                                	// animal token and if true unpack the associated animal data.
+	                                	logger.log(Level.INFO, "\tChecking for token.");
 	                                	boolean isAnimalToken = inputStream.readBoolean();
 	                                	if (isAnimalToken)
 	                                	{
+		                                	logger.log(Level.INFO, "\tFound token, calling 'fromStream'.");
 	                                		CreatureHelper.fromStream(inputStream, posx, posy, posz, createdItems, frozen);
 	                                	}
                                 	} catch (IOException e)
@@ -285,6 +289,7 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                             			logException("Failed to decode animal token.", e);
                                         throw new RuntimeException(e);
                                 	}
+                                	logger.log(Level.INFO, "\tDone, returning null.");
                                 	return null;
                                 }
                             };
