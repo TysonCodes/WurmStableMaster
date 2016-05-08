@@ -277,7 +277,7 @@ public class CreatureHelper
 		
 		// Save creature data to output stream.
 		outputStream.writeLong(animal.getWurmId());
-		outputStream.writeUTF(animal.getName());
+		outputStream.writeUTF(animal.name);
 		outputStream.writeUTF(animal.getTemplate().getName());
 		outputStream.writeByte(animal.getSex());
 		outputStream.writeShort(animal.getCentimetersHigh());
@@ -356,7 +356,7 @@ public class CreatureHelper
     	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just before writing num items, stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
 		// Write the values to the output stream.
 		outputStream.writeInt(numItems);
-    	logger.log(Level.INFO, "Sending " + numItems + " items for " + animal.getName() + ".");
+    	logger.log(Level.INFO, "Sending " + numItems + " items for " + animal.name + ".");
 		for (Item curItem : animalItems)
 		{
 			if (!curItem.isBodyPart() && !curItem.isInventory())
@@ -422,7 +422,7 @@ public class CreatureHelper
 	            catch (NoSuchStructureException nss) 
 	            {
 	                animal.getStatus().buildingId = MiscConstants.NOID;
-	                logger.log(Level.INFO, "Could not find structure for " + animal.getName());
+	                logger.log(Level.INFO, "Could not find structure for " + animal.name);
 	                animal.setStructure(null);
 	            }
 	        }
@@ -482,7 +482,7 @@ public class CreatureHelper
 	            }
 	            catch (NoSuchItemException nsi) 
 	            {
-	                logger.log(Level.INFO, "Item " + hitchedTo + " missing for hitched " + animal.getWurmId() + " " + animal.getName());
+	                logger.log(Level.INFO, "Item " + hitchedTo + " missing for hitched " + animal.getWurmId() + " " + animal.name);
 	            }
 	        }
             animal.getStatus().modtype = inputStream.readByte();
@@ -569,7 +569,7 @@ public class CreatureHelper
 	        	+ "DETECTIONSECS, DISEASE, LASTGROOMED, VEHICLE, TYPE, PETNAME) values (?, ?, ?, ?, ?, ?, ?, "
 	        	+ "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 	        ps.setLong(1, animal.getWurmId());
-	        ps.setString(2, animal.getName());
+	        ps.setString(2, animal.name);
 	        ps.setString(3, animal.getTemplate().getName());
 	        ps.setByte(4, animal.getSex());
 	        ps.setShort(5, animal.getCentimetersHigh());
@@ -621,7 +621,7 @@ public class CreatureHelper
     	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just before reading num items, numSkills was " + numSkills + ", stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
 		// Process creature items.
 		int numItems = inputStream.readInt();
-    	logger.log(Level.INFO, "The animal(" + animal.getName() + ") had " + numItems + " items.");
+    	logger.log(Level.INFO, "The animal(" + animal.name + ") had " + numItems + " items.");
 		for (int curItem = 0; curItem < numItems; curItem++)
 		{
         	logger.log(Level.INFO, "Calling 'createItem'.");
