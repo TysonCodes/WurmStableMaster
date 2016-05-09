@@ -617,12 +617,9 @@ public class CreatureHelper
 			IntraServerConnection.createItem(inputStream, posx, posy, posz, createdItems, frozen);
 		}
 		
-		// TODO: Load items for creature.
-		// Can't use Items.loadAllItemsForNonPlayer(animal, animal.getStatus().getInventoryId()) because
-		// items aren't yet loaded and this only works when initially loading everything because there is a 
-		// previous call to Items.loadAllCreatureItems() that populates the correct memory for creature items
-		// that this function uses.
-		// My guess is that a reload of the server will work but that seems excessive. Future effort.
+		// Load items for creature.
+		// After 'createItem' finishes the item is in the DB. Load it and use it.
+		Items.loadAllItemsForCreature(animal, animal.getStatus().getInventoryId());
     	logger.log(Level.INFO, "Leaving CreatureHelper.fromStream.");
         
 	}
