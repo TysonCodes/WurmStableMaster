@@ -28,7 +28,7 @@ import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
 import com.wurmonline.server.items.NoSuchTemplateException;
 import com.wurmonline.server.skills.Skill;
-import com.wurmonline.server.skills.Skills;
+import com.wurmonline.server.skills.SkillsFactory;
 import com.wurmonline.server.structures.NoSuchStructureException;
 import com.wurmonline.server.structures.Structure;
 import com.wurmonline.server.structures.Structures;
@@ -489,7 +489,17 @@ public class CreatureHelper
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
 		
-    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just before reading numSkills, stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
+		try
+		{
+	    	animal.skills = SkillsFactory.createSkills(animal.getWurmId());
+	    	animal.skills.clone(animal.template.getSkills().getSkills());
+	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after animal.skills.clone() num skills = " + animal.skills.getSkills().length + ".");
+		} catch (Exception e)
+		{
+            logger.log(Level.WARNING, e.getMessage(), e);
+		}
+
+		logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just before reading numSkills, stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
 		// Get skills and set for creature.
 		int numSkills = inputStream.readInt();
 		try
@@ -498,9 +508,6 @@ public class CreatureHelper
 			double curSkillValue;
 			double curSkillMinValue;
 			long curSkillLastUsed;
-			long curSkillId;
-	        dbcon = DbConnector.getCreatureDbCon();
-	        ps = dbcon.prepareStatement("insert into SKILLS (VALUE, LASTUSED, MINVALUE, NUMBER, OWNER,ID) values(?,?,?,?,?,?)");
 			for (int skillNo = 0; skillNo < numSkills; skillNo++)
 			{
 				// Read skill information from input stream
@@ -508,33 +515,18 @@ public class CreatureHelper
 				curSkillValue = inputStream.readDouble();
 				curSkillMinValue = inputStream.readDouble();
 				curSkillLastUsed = inputStream.readLong();
-				curSkillId = inputStream.readLong();
+				inputStream.readLong(); // Not currently using the ID value. Could push this to a DB but then hard to get back.
 				
-				// Write to database
-				ps.setDouble(1, curSkillValue);
-				ps.setLong(2, curSkillLastUsed);
-				ps.setDouble(3, curSkillMinValue);
-				ps.setInt(4, curSkillNum);
-				ps.setLong(5, animal.getWurmId());
-				ps.setLong(6, curSkillId);
-		        ps.execute();
+				animal.skills.learn(curSkillNum, (float) curSkillMinValue, false);
+				animal.skills.getSkill(curSkillNum).lastUsed = curSkillLastUsed;
+				animal.skills.getSkill(curSkillNum).setKnowledge(curSkillValue, false);
 			}
-			animal.skills = animal.template.getSkills();
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after animal.template.getSkills() num skills = " + animal.skills.getSkills().length + ".");
-			Skills.fillCreatureTempSkills(animal);
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after Skills.fillCreatureTempSills(animal) num skills = " + animal.skills.getSkills().length + ".");
-			animal.skills.load();
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after animal.skills.load() num skills = " + animal.skills.getSkills().length + ".");
 		} catch (Exception e)
 		{
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
-		finally
-		{
-			// Cleanup database connection. 
-            DbUtilities.closeDatabaseObjects(ps, null); 
-            DbConnector.returnConnection(dbcon); 
-		}
+
+    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after skills loop num skills = " + animal.skills.getSkills().length + ".");
 		
 		// Create body parts.
 		try
