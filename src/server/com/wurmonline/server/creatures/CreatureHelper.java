@@ -316,15 +316,8 @@ public class CreatureHelper
 		outputStream.writeUTF(animal.petName);
 
         // Send all non-temporary skills.
-        Skill[] animalSkills = animal.getSkills().getSkills();
+        Skill[] animalSkills = animal.getSkills().getSkillsNoTemp();
         int numSkills = animalSkills.length;
-        for (Skill curSkill : animalSkills)
-        {
-        	if (curSkill.isTemporary())
-        	{
-        		numSkills--;
-        	}
-        }
 
     	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just before writing num skills(" + numSkills + 
     			"), stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
@@ -506,7 +499,6 @@ public class CreatureHelper
 			double curSkillMinValue;
 			long curSkillLastUsed;
 			long curSkillId;
-			Skills.fillCreatureTempSkills(animal);
 	        dbcon = DbConnector.getCreatureDbCon();
 	        ps = dbcon.prepareStatement("insert into SKILLS (VALUE, LASTUSED, MINVALUE, NUMBER, OWNER,ID) values(?,?,?,?,?,?)");
 			for (int skillNo = 0; skillNo < numSkills; skillNo++)
@@ -527,7 +519,12 @@ public class CreatureHelper
 				ps.setLong(6, curSkillId);
 		        ps.execute();
 			}
+			animal.skills = animal.template.getSkills();
+	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after animal.template.getSkills() num skills = " + animal.skills.getSkills().length + ".");
+			Skills.fillCreatureTempSkills(animal);
+	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after Skills.fillCreatureTempSills(animal) num skills = " + animal.skills.getSkills().length + ".");
 			animal.skills.load();
+	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after animal.skills.load() num skills = " + animal.skills.getSkills().length + ".");
 		} catch (Exception e)
 		{
             logger.log(Level.WARNING, e.getMessage(), e);
