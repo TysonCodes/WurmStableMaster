@@ -9,14 +9,18 @@ import com.wurmonline.shared.constants.ItemMaterials;
 
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.BehaviourList;
+import com.wurmonline.server.behaviours.MethodsCreatures;
 import com.wurmonline.server.creatures.Creature;
 import com.wurmonline.server.creatures.CreatureHelper;
 import com.wurmonline.server.creatures.Creatures;
+import com.wurmonline.server.creatures.NoSuchCreatureException;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
 import com.wurmonline.server.items.ItemTemplateFactory;
 import static com.wurmonline.server.items.ItemTypes.*;
+import com.wurmonline.server.Items;
 import com.wurmonline.server.MiscConstants;
+import com.wurmonline.server.NoSuchItemException;
 
 // From Ago's modloader
 import org.gotti.wurmunlimited.modloader.classhooks.HookException;
@@ -39,12 +43,13 @@ import javassist.CtClass;
 import javassist.NotFoundException;
 import javassist.bytecode.Descriptor;
 
-import java.io.DataInputStream;
 // Base Java
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
@@ -296,6 +301,79 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                         }
                     });
 			// END - void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
+
+			// String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, 
+			//	int, int, int, int, float)
+			descriptor = Descriptor.ofMethod(classPool.get("java.lang.String"), new CtClass[] {
+					classPool.get("byte[]"), classPool.get("byte[]"), CtClass.longType, CtClass.longType, 
+					CtClass.intType, CtClass.intType, CtClass.intType, CtClass.intType, CtClass.floatType });
+			
+			HookManager.getInstance().registerHook("com.wurmonline.server.LoginServerWebConnection", "sendVehicle", 
+				descriptor, new InvocationHandlerFactory()
+                    {
+                        @Override
+                        public InvocationHandler createInvocationHandler()
+                        {
+                            return new InvocationHandler()
+                            {
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+                                {
+                                	String result = "Failed - Unknown";
+                                	try
+                                	{
+	                                	logger.log(Level.INFO, "Entering handler for 'sendVehicle'.");
+	                                	// Get the vehicle.
+	                                	long vehicleId = (long) args[3];
+	                                	Item vehicle = Items.getItem(vehicleId);
+	                                	
+	                                	logger.log(Level.INFO, "\tGetting all the vehicle items.");
+	                                	// Get all items on the vehicle and look for animal tokens
+	                                	// For each animal token get the Creature (animal) and add to a list.
+	                                	Item[] allItems = vehicle.getAllItems(true);
+	                                	Set<Creature> allAnimals = new HashSet<Creature>();
+	                                	Creatures allCreatures = Creatures.getInstance();
+	                                	for (Item curItem : allItems)
+	                                	{
+	                                		if (curItem.getTemplateId() == animalTokenId)
+	                                		{
+	    	                                	logger.log(Level.INFO, "\tItem is an animal token.");
+	                                			// Get animal associated with this token.
+	                                			Creature animal = allCreatures.getCreature(curItem.getData());
+	                                			allAnimals.add(animal);
+	                                		}
+	                                	}
+	                                	
+	                                	// Call base version.
+	                                	logger.log(Level.INFO, "\tCalling base version.");
+	                                	result = (String) method.invoke(proxy, args);
+	                                	
+	                                	// If the transfer succeeded then destroy all the animals associated
+	                                	// with the animal tokens that were just transfered.
+	                                	if (result.equals(""))
+	                                	{
+	                                		for (Creature curAnimal : allAnimals)
+	                                		{
+	    	                                	logger.log(Level.INFO, "\tDestroying animal: " + curAnimal.getName() + ".");
+	                                			MethodsCreatures.destroyCreature(curAnimal);
+	                                		}
+	                                	}
+	                                	
+                                	} catch (NoSuchItemException e)
+                                	{
+                            			logException("\tFailed to get the vehicle item.", e);
+                                        throw new RuntimeException(e);
+                                	} catch (NoSuchCreatureException e)
+                                	{
+                                		logException("\tFailed to get an animal.", e);
+                                	}
+                                	logger.log(Level.INFO, "\tDone, returning result.");
+                                	return result;
+                                }
+                            };
+                        }
+                    });
+			// END - String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, int, int, int, int, float)
 
 		} catch (NotFoundException e)
 		{
