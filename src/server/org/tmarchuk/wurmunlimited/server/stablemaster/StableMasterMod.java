@@ -20,14 +20,13 @@ import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
 import com.wurmonline.server.items.ItemTemplateFactory;
 import com.wurmonline.server.players.Player;
-
-import static com.wurmonline.server.items.ItemTypes.*;
 import com.wurmonline.server.Items;
 import com.wurmonline.server.MiscConstants;
 import com.wurmonline.server.NoSuchItemException;
+import static com.wurmonline.server.items.ItemTypes.*;
 
-import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 // From Ago's modloader
+import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 import org.gotti.wurmunlimited.modloader.classhooks.HookException;
 import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
 import org.gotti.wurmunlimited.modloader.classhooks.InvocationHandlerFactory;
@@ -272,7 +271,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                 {
                                 	try
                                 	{
-	                                	logger.log(Level.INFO, "Entering handler for 'createItem'.");
 	                                	// Get some arguments
                                 		DataInputStream inputStream = (DataInputStream) args[0];
                                 		float posx = (float) args[1];
@@ -283,16 +281,13 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                	boolean frozen = (boolean) args[5];
 	                                	
 	                                	// Call base version.
-	                                	logger.log(Level.INFO, "\tCalling base version.");
 	                                	method.invoke(proxy, args);
 	                                	
 	                                	// Check the boolean we tacked on specifying whether or not this is an 
 	                                	// animal token and if true unpack the associated animal data.
-	                                	logger.log(Level.INFO, "\tChecking for token.");
 	                                	boolean isAnimalToken = inputStream.readBoolean();
 	                                	if (isAnimalToken)
 	                                	{
-		                                	logger.log(Level.INFO, "\tFound token, calling 'fromStream'.");
 	                                		CreatureHelper.fromStream(inputStream, posx, posy, posz, createdItems, frozen);
 	                                	}
                                 	} catch (IOException e)
@@ -300,7 +295,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                             			logException("Failed to decode animal token.", e);
                                         throw new RuntimeException(e);
                                 	}
-                                	logger.log(Level.INFO, "\tDone, returning null.");
                                 	return null;
                                 }
                             };
@@ -328,12 +322,10 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                 	String result = "Failed - Unknown";
                                 	try
                                 	{
-	                                	logger.log(Level.INFO, "Entering handler for 'sendVehicle'.");
 	                                	// Get the vehicle.
 	                                	long vehicleId = (long) args[3];
 	                                	Item vehicle = Items.getItem(vehicleId);
 	                                	
-	                                	logger.log(Level.INFO, "\tGetting all the vehicle items.");
 	                                	// Get all items on the vehicle and look for animal tokens
 	                                	// For each animal token get the Creature (animal) and add to a list.
 	                                	Item[] allItems = vehicle.getAllItems(true);
@@ -343,7 +335,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                	{
 	                                		if (curItem.getTemplateId() == animalTokenId)
 	                                		{
-	    	                                	logger.log(Level.INFO, "\tItem is an animal token.");
 	                                			// Get animal associated with this token.
 	                                			Creature animal = allCreatures.getCreature(curItem.getData());
 	                                			allAnimals.add(animal);
@@ -351,7 +342,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                	}
 	                                	
 	                                	// Call base version.
-	                                	logger.log(Level.INFO, "\tCalling base version.");
 	                                	result = (String) method.invoke(proxy, args);
 	                                	
 	                                	// If the transfer succeeded then destroy all the animals associated
@@ -360,7 +350,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                	{
 	                                		for (Creature curAnimal : allAnimals)
 	                                		{
-	    	                                	logger.log(Level.INFO, "\tDestroying animal: " + curAnimal.getName() + ".");
 	                                			MethodsCreatures.destroyCreature(curAnimal);
 	                                		}
 	                                	}
@@ -373,7 +362,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                 	{
                                 		logException("\tFailed to get an animal.", e);
                                 	}
-                                	logger.log(Level.INFO, "\tDone, returning result.");
                                 	return result;
                                 }
                             };
@@ -397,8 +385,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                 @Override
                                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
                                 {
-                                	logger.log(Level.INFO, "Entering handler for 'sendReconnect'.");
-                                	
                                 	// Get the Player.
                                 	Communicator comm = (Communicator) proxy;
                                 	Player thePlayer = (Player) comm.player;
@@ -416,8 +402,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                                         	// If it's an animal token get the associated animal
                                     		if (curItem.getTemplateId() == animalTokenId)
                                     		{
-           	                                	logger.log(Level.INFO, "\tFound an animal token.");
-
            	                                	Creature animal = null;
            	                                	try
            	                                	{
@@ -428,14 +412,12 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
            	                                		logger.log(Level.WARNING, "Failed to get animal associated with animal token. " + e.getMessage(), e);
            	                                	}
 
-           	                                	logger.log(Level.INFO, "\tDestroying animal: " + animal.getName() + ".");
                                     			MethodsCreatures.destroyCreature(animal);
                                     		}
                                     	}
                                 	}
                                 	
                                 	// Call base version.
-                                	logger.log(Level.INFO, "\tCalling base version and returning.");
                                 	return method.invoke(proxy, args);
                                 	
                                 }
@@ -458,10 +440,7 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                @Override
 	                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
 	                                {
-	                                	logger.log(Level.INFO, "Entering handler for 'PlayerTransfer.poll()'.");
-	                                	
 	                                	// Call base version.
-	                                	logger.log(Level.INFO, "\tCalling base version.");
 	                                	boolean doneTransfer = (boolean) method.invoke(proxy, args);
 	                                	
 	                                	try
@@ -493,7 +472,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                		logger.log(Level.WARNING, "Unable to get private fields for PlayerTransfer class :" + e.getMessage(), e);
 	                                	}
 	                                	
-	                                	logger.log(Level.INFO, "\tDone, returning " + doneTransfer + ".");
 	                                	return doneTransfer;
 	                                }
 	                            };
@@ -501,67 +479,6 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                    });			
 			// END - boolean com.wurmonline.server.intra.PlayerTransfer.poll()
 			
-/*			// void com.wurmonline.server.intra.IntraServerConnection.deleteItem(long, boolean)
-			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
-					CtClass.longType, CtClass.booleanType });
-			
-			HookManager.getInstance().registerHook("com.wurmonline.server.intra.IntraServerConnection", "deleteItem", 
-				descriptor, new InvocationHandlerFactory()
-                    {
-                        @Override
-                        public InvocationHandler createInvocationHandler()
-                        {
-                            return new InvocationHandler()
-                            {
-                                @Override
-                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
-                                {
-                                	logger.log(Level.INFO, "Entering handler for 'deleteItem'.");
-                                	// Get the item.
-                                	long itemId = (long) args[0];
-                                	Item itemToDelete = null;
-                                	try
-                                	{
-                                		itemToDelete = Items.getItem(itemId);
-                                	} catch (NoSuchItemException e)
-                                	{
-                                    	logger.log(Level.INFO, "\tNo such item(" + itemId + "), returning null.");
-                                		return null;
-                                	}
-                                	
-                                	// If it's an animal token get the associated animal
-                                	Creatures allCreatures = Creatures.getInstance();
-                               		if (itemToDelete.getTemplateId() == animalTokenId)
-                               		{
-   	                                	logger.log(Level.INFO, "\tItem is an animal token.");
-
-   	                                	Creature animal = null;
-   	                                	try
-   	                                	{
-   	                                		// Get animal associated with this token.
-                                			animal = allCreatures.getCreature(itemToDelete.getData());
-   	                                	} catch (NoSuchCreatureException e)
-   	                                	{
-   	                                		logger.log(Level.WARNING, "Failed to get animal associated with animal token. " + e.getMessage(), e);
-   	                                		return null;
-   	                                	}
-
-   	                                	logger.log(Level.INFO, "\tDestroying animal: " + animal.getName() + ".");
-                            			MethodsCreatures.destroyCreature(animal);
-                               		}
-                                	
-                                	// Call base version.
-                                	logger.log(Level.INFO, "\tCalling base version.");
-                                	method.invoke(proxy, args);
-                                	
-                                	logger.log(Level.INFO, "\tDone, returning null.");
-                                	return null;
-                                }
-                            };
-                        }
-                    });
-			// END - void com.wurmonline.server.intra.IntraServerConnection.deleteItem(long, boolean)
-*/			
 		} catch (NotFoundException e)
 		{
             logException("Failed to create hooks for " + StableMasterMod.class.getName(), e);

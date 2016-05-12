@@ -1,15 +1,13 @@
 package com.wurmonline.server.creatures;
 
-
-import com.wurmonline.server.DbConnector;
-import com.wurmonline.server.FailedException;
-import com.wurmonline.server.Items;
-
 /**
  * Created by Tyson Marchuk on 2016-04-29.
  */
 
 // From Wurm Unlimited Server
+import com.wurmonline.server.DbConnector;
+import com.wurmonline.server.FailedException;
+import com.wurmonline.server.Items;
 import com.wurmonline.server.MiscConstants;
 import com.wurmonline.server.NoSuchItemException;
 import com.wurmonline.server.Players;
@@ -258,8 +256,6 @@ public class CreatureHelper
 	// Send the minimum data associated with a creature to 'outputStream'.
 	public static void toStream(Creature animal, DataOutputStream outputStream) throws IOException
 	{
-		int startSize = outputStream.size();
-    	logger.log(Level.INFO, "Entering 'CreatureHelper.toStream' stream size = " + outputStream.size() + ".");
 		// Send Offspring data.
 		Offspring baby = animal.getOffspring();
 		if (baby != null)
@@ -292,7 +288,6 @@ public class CreatureHelper
 		outputStream.writeShort(animal.getStatus().getThirst() & 0xFFFF);
 		outputStream.writeBoolean(animal.isDead());
 		outputStream.writeBoolean(animal.isStealth());
-    	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just after writing isStealth, stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
 		outputStream.writeByte(animal.getCurrentKingdom());
 		outputStream.writeInt(animal.getStatus().age);
 		outputStream.writeLong(animal.getStatus().lastPolledAge);
@@ -303,7 +298,6 @@ public class CreatureHelper
 		outputStream.writeLong(animal.getFather());
 		outputStream.writeBoolean(animal.isReborn());
 		outputStream.writeFloat(animal.getLoyalty());
-    	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just after writing loyalty, stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
 		outputStream.writeLong(animal.getStatus().lastPolledLoyalty);
 		outputStream.writeBoolean(animal.isOffline());
 		outputStream.writeBoolean(animal.isStayonline());
@@ -312,15 +306,12 @@ public class CreatureHelper
 		outputStream.writeLong(animal.getLastGroomed());
 		outputStream.writeLong(animal.getVehicle());
 		outputStream.writeByte(animal.getStatus().modtype);
-    	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just after writing modtype, animal.petName='" + animal.petName + "', stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
 		outputStream.writeUTF(animal.petName);
 
         // Send all non-temporary skills.
         Skill[] animalSkills = animal.getSkills().getSkillsNoTemp();
         int numSkills = animalSkills.length;
 
-    	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just before writing num skills(" + numSkills + 
-    			"), stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
 		// Write the values to the output stream.
 		outputStream.writeInt(numSkills);
 		for (Skill curSkill : animalSkills)
@@ -346,15 +337,12 @@ public class CreatureHelper
 			}
 		}
 		
-    	logger.log(Level.INFO, "\t'CreatureHelper.toStream' just before writing num items, stream size = " + outputStream.size() + ", written so far = " + (outputStream.size() - startSize) + ".");
 		// Write the values to the output stream.
 		outputStream.writeInt(numItems);
-    	logger.log(Level.INFO, "Sending " + numItems + " items for " + animal.name + ".");
 		for (Item curItem : animalItems)
 		{
 			if (!curItem.isBodyPart() && !curItem.isInventory())
 			{
-            	logger.log(Level.INFO, "Calling 'PlayerTransfer.sendItem' for " + curItem.getName() + ".");
 				PlayerTransfer.sendItem(curItem, outputStream, false);
 			}
 		}
@@ -363,8 +351,6 @@ public class CreatureHelper
 	public static void fromStream(DataInputStream inputStream, float posx, float posy, float posz,
 			Set<ItemMetaData> createdItems, boolean frozen) throws IOException
 	{
-		int startSize = inputStream.available();
-    	logger.log(Level.INFO, "Entering 'CreatureHelper.fromStream' stream available = " + startSize + ".");
         Connection dbcon = null;
         PreparedStatement ps = null;
 
@@ -425,7 +411,6 @@ public class CreatureHelper
 	        animal.getStatus().thirst = inputStream.readShort();
 	        animal.getStatus().dead = inputStream.readBoolean();
 	        animal.getStatus().stealth = inputStream.readBoolean();
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just after stealth, stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
 	        animal.getStatus().kingdom = inputStream.readByte();
 	        animal.getStatus().age = inputStream.readInt();
 	        animal.getStatus().lastPolledAge = inputStream.readLong();
@@ -440,7 +425,6 @@ public class CreatureHelper
 	        animal.getStatus().father = inputStream.readLong();
 	        animal.getStatus().reborn = inputStream.readBoolean();
 	        animal.getStatus().loyalty = inputStream.readFloat();
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just after reading loyalty, stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
 	        animal.getStatus().lastPolledLoyalty = inputStream.readLong();
 	        animal.getStatus().offline = inputStream.readBoolean();
 	        animal.getStatus().stayOnline = inputStream.readBoolean();
@@ -479,9 +463,7 @@ public class CreatureHelper
 	            }
 	        }
             animal.getStatus().modtype = inputStream.readByte();
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just after reading modtype, stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
             animal.setPetName(inputStream.readUTF());
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just after reading petname='" + animal.petName + "', stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
             animal.loadTemplate();
             Creatures.getInstance().addCreature(animal, false, false);
 		} catch (Exception e)
@@ -493,13 +475,11 @@ public class CreatureHelper
 		{
 	    	animal.skills = SkillsFactory.createSkills(animal.getWurmId());
 	    	animal.skills.clone(animal.template.getSkills().getSkills());
-	    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after animal.skills.clone() num skills = " + animal.skills.getSkills().length + ".");
 		} catch (Exception e)
 		{
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
 
-		logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just before reading numSkills, stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
 		// Get skills and set for creature.
 		int numSkills = inputStream.readInt();
 		try
@@ -526,8 +506,6 @@ public class CreatureHelper
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
 
-    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' after skills loop num skills = " + animal.skills.getSkills().length + ".");
-		
 		// Create body parts.
 		try
 		{
@@ -606,21 +584,16 @@ public class CreatureHelper
 		// Tell the creature that it is saved so it doesn't try to save itself later.
 		animal.getStatus().setStatusExists(true);
 		
-    	logger.log(Level.INFO, "\t'CreatureHelper.fromStream' just before reading num items, numSkills was " + numSkills + ", stream size = " + inputStream.available() + ", read so far = " + (startSize - inputStream.available()) + ".");
 		// Process creature items.
 		int numItems = inputStream.readInt();
-    	logger.log(Level.INFO, "The animal(" + animal.name + ") had " + numItems + " items.");
 		for (int curItem = 0; curItem < numItems; curItem++)
 		{
-        	logger.log(Level.INFO, "Calling 'createItem'.");
 			IntraServerConnection.createItem(inputStream, posx, posy, posz, createdItems, frozen);
 		}
 		
 		// Load items for creature.
 		// After 'createItem' finishes the item is in the DB. Load it and use it.
 		Items.loadAllItemsForCreature(animal, animal.getStatus().getInventoryId());
-    	logger.log(Level.INFO, "Leaving CreatureHelper.fromStream.");
-        
 	}
 
 	// Helpers to work with private methods/fields.
