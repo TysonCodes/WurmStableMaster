@@ -10,18 +10,23 @@ import com.wurmonline.shared.constants.ItemMaterials;
 // From Wurm Unlimited Server
 import com.wurmonline.server.behaviours.BehaviourList;
 import com.wurmonline.server.behaviours.MethodsCreatures;
+import com.wurmonline.server.creatures.Communicator;
 import com.wurmonline.server.creatures.Creature;
 import com.wurmonline.server.creatures.CreatureHelper;
 import com.wurmonline.server.creatures.Creatures;
 import com.wurmonline.server.creatures.NoSuchCreatureException;
+import com.wurmonline.server.intra.PlayerTransfer;
 import com.wurmonline.server.items.Item;
 import com.wurmonline.server.items.ItemMetaData;
 import com.wurmonline.server.items.ItemTemplateFactory;
+import com.wurmonline.server.players.Player;
+
 import static com.wurmonline.server.items.ItemTypes.*;
 import com.wurmonline.server.Items;
 import com.wurmonline.server.MiscConstants;
 import com.wurmonline.server.NoSuchItemException;
 
+import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 // From Ago's modloader
 import org.gotti.wurmunlimited.modloader.classhooks.HookException;
 import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
@@ -98,6 +103,7 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	
 	// Internal
 	private StableMaster stableMasterBuilder = null;
+	private Set<Long> playersTransferringNotSwitchingType = new HashSet<Long>();
 	
 	public static void logException(String msg, Throwable e)
 	{
@@ -375,6 +381,187 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
                     });
 			// END - String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, int, int, int, int, float)
 
+			// void com.wurmonline.server.creatures.Communicator.sendReconnect(final String ip, 
+			//		final int port, final String session)
+			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+					classPool.get("java.lang.String"), CtClass.intType, classPool.get("java.lang.String") });
+			
+			HookManager.getInstance().registerHook("com.wurmonline.server.creatures.Communicator", "sendReconnect", 
+				descriptor, new InvocationHandlerFactory()
+                    {
+                        @Override
+                        public InvocationHandler createInvocationHandler()
+                        {
+                            return new InvocationHandler()
+                            {
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+                                {
+                                	logger.log(Level.INFO, "Entering handler for 'sendReconnect'.");
+                                	
+                                	// Get the Player.
+                                	Communicator comm = (Communicator) proxy;
+                                	Player thePlayer = (Player) comm.player;
+                                	
+                                	// Check if the player is transferring and not switching to/from epic.
+                                	if (playersTransferringNotSwitchingType.contains(thePlayer.getWurmId()))
+                                	{
+                                    	// Get all the player items.
+                                    	Item[] playerItems = thePlayer.getAllItems();
+                                    	
+                                    	// Go through all the items looking for tokens
+                                    	Creatures allCreatures = Creatures.getInstance();
+                                    	for (Item curItem : playerItems)
+                                    	{
+                                        	// If it's an animal token get the associated animal
+                                    		if (curItem.getTemplateId() == animalTokenId)
+                                    		{
+           	                                	logger.log(Level.INFO, "\tFound an animal token.");
+
+           	                                	Creature animal = null;
+           	                                	try
+           	                                	{
+           	                                		// Get animal associated with this token.
+                                        			animal = allCreatures.getCreature(curItem.getData());
+           	                                	} catch (NoSuchCreatureException e)
+           	                                	{
+           	                                		logger.log(Level.WARNING, "Failed to get animal associated with animal token. " + e.getMessage(), e);
+           	                                	}
+
+           	                                	logger.log(Level.INFO, "\tDestroying animal: " + animal.getName() + ".");
+                                    			MethodsCreatures.destroyCreature(animal);
+                                    		}
+                                    	}
+                                	}
+                                	
+                                	// Call base version.
+                                	logger.log(Level.INFO, "\tCalling base version and returning.");
+                                	return method.invoke(proxy, args);
+                                	
+                                }
+                            };
+                        }
+                    });
+			// END - void com.wurmonline.server.creatures.Communicator.sendReconnect(final String ip, final int port, final String session)
+
+			// boolean com.wurmonline.server.intra.PlayerTransfer.poll()
+			descriptor = Descriptor.ofMethod(CtClass.booleanType, new CtClass[] {});
+			
+			HookManager.getInstance().registerHook("com.wurmonline.server.intra.PlayerTransfer", "poll", 
+					descriptor, new InvocationHandlerFactory()
+	                    {
+	                        @Override
+	                        public InvocationHandler createInvocationHandler()
+	                        {
+	                            return new InvocationHandler()
+	                            {
+	                                @Override
+	                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+	                                {
+	                                	logger.log(Level.INFO, "Entering handler for 'PlayerTransfer.poll()'.");
+	                                	
+	                                	// Call base version.
+	                                	logger.log(Level.INFO, "\tCalling base version.");
+	                                	boolean doneTransfer = (boolean) method.invoke(proxy, args);
+	                                	
+	                                	try
+	                                	{
+		                                	// Get the player and whether or not they're transferring to/from epic.
+		                                	Player thePlayer = ReflectionUtil.getPrivateField(proxy, 
+		                                			ReflectionUtil.getField(PlayerTransfer.class, "player"));
+		                                	boolean toOrFromEpic = ReflectionUtil.getPrivateField(proxy, 
+		                                			ReflectionUtil.getField(PlayerTransfer.class, "toOrFromEpic"));
+		                                	
+		                                	if (doneTransfer && !toOrFromEpic)
+		                                	{
+			                        			// If done and we previously added them then remove them from 
+		                                		// the list because they have presumably either transferred or 
+		                                		// failed.
+		                                		playersTransferringNotSwitchingType.remove(thePlayer.getWurmId());
+		                                	}
+		                                	else if (!toOrFromEpic && !playersTransferringNotSwitchingType.contains(
+		                                			thePlayer.getWurmId()))
+		                                	{
+			                        			// If player is not switching to or from epic and they're not 
+		                                		// in the list and this isn't done add them to the list of 
+		                                		// players we track to wipe their animal tokens if they end up 
+			                        			// transferring (sendReconnect)
+		                                		playersTransferringNotSwitchingType.add(thePlayer.getWurmId());
+		                                	}
+	                                	} catch (NoSuchFieldException e)
+	                                	{
+	                                		logger.log(Level.WARNING, "Unable to get private fields for PlayerTransfer class :" + e.getMessage(), e);
+	                                	}
+	                                	
+	                                	logger.log(Level.INFO, "\tDone, returning " + doneTransfer + ".");
+	                                	return doneTransfer;
+	                                }
+	                            };
+	                        }
+	                    });			
+			// END - boolean com.wurmonline.server.intra.PlayerTransfer.poll()
+			
+/*			// void com.wurmonline.server.intra.IntraServerConnection.deleteItem(long, boolean)
+			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+					CtClass.longType, CtClass.booleanType });
+			
+			HookManager.getInstance().registerHook("com.wurmonline.server.intra.IntraServerConnection", "deleteItem", 
+				descriptor, new InvocationHandlerFactory()
+                    {
+                        @Override
+                        public InvocationHandler createInvocationHandler()
+                        {
+                            return new InvocationHandler()
+                            {
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+                                {
+                                	logger.log(Level.INFO, "Entering handler for 'deleteItem'.");
+                                	// Get the item.
+                                	long itemId = (long) args[0];
+                                	Item itemToDelete = null;
+                                	try
+                                	{
+                                		itemToDelete = Items.getItem(itemId);
+                                	} catch (NoSuchItemException e)
+                                	{
+                                    	logger.log(Level.INFO, "\tNo such item(" + itemId + "), returning null.");
+                                		return null;
+                                	}
+                                	
+                                	// If it's an animal token get the associated animal
+                                	Creatures allCreatures = Creatures.getInstance();
+                               		if (itemToDelete.getTemplateId() == animalTokenId)
+                               		{
+   	                                	logger.log(Level.INFO, "\tItem is an animal token.");
+
+   	                                	Creature animal = null;
+   	                                	try
+   	                                	{
+   	                                		// Get animal associated with this token.
+                                			animal = allCreatures.getCreature(itemToDelete.getData());
+   	                                	} catch (NoSuchCreatureException e)
+   	                                	{
+   	                                		logger.log(Level.WARNING, "Failed to get animal associated with animal token. " + e.getMessage(), e);
+   	                                		return null;
+   	                                	}
+
+   	                                	logger.log(Level.INFO, "\tDestroying animal: " + animal.getName() + ".");
+                            			MethodsCreatures.destroyCreature(animal);
+                               		}
+                                	
+                                	// Call base version.
+                                	logger.log(Level.INFO, "\tCalling base version.");
+                                	method.invoke(proxy, args);
+                                	
+                                	logger.log(Level.INFO, "\tDone, returning null.");
+                                	return null;
+                                }
+                            };
+                        }
+                    });
+			// END - void com.wurmonline.server.intra.IntraServerConnection.deleteItem(long, boolean)
+*/			
 		} catch (NotFoundException e)
 		{
             logException("Failed to create hooks for " + StableMasterMod.class.getName(), e);

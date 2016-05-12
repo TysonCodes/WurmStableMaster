@@ -537,7 +537,6 @@ public class CreatureHelper
             logger.log(Level.WARNING, e.getMessage(), e);
 		}
 		
-		// TODO: Fix this to actually handle inventory items properly.
 		// Create creature posssessions so it doesn't freak out trying to save them.
 		try
 		{
