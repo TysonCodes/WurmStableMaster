@@ -67,7 +67,8 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 		try
 		{
 			if ((performer instanceof Player) && 
-					((target.getTemplateId() == animalTokenId)) && (target.getParent().isInventory())) 
+					((target.getTemplateId() == animalTokenId)) && (target.getParent().isInventory())
+					&& !target.isTraded()) 
 			{
 				return Arrays.asList(actionEntry);
 			} 
@@ -104,6 +105,12 @@ public class RedeemAction implements ModAction, BehaviourProvider, ActionPerform
 	{
 		try 
 		{
+			if (target.isTraded())
+			{
+				performer.getCommunicator().sendNormalServerMessage("You cannot redeem an animal token while it is part of a trade.");
+				return true;
+			}
+
 			Creature theAnimal = Creatures.getInstance().getCreature(target.getData());
 
 			// Set the location to the current player location.
