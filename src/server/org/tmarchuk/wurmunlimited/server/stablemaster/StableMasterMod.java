@@ -85,7 +85,9 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	private static final String CONFIG_EXCHANGE_ANIMAL_COST_IRONS = "exchangeAnimalCostIrons";
 	private static final String CONFIG_ENABLE_NO_NPC_EXCHANGE = "enableNoNpcExchange";
 	private static final String CONFIG_ENABLE_SMALL_BOATS_LOAD = "enableSmallBoatsLoad";
-	
+	private static final String CONFIG_ENABLE_SERVER_TRANSFER = "enableServerTransfer";
+	private static final String CONFIG_ENABLE_SERVER_TRANSFER_LOGGING = "enableServerTransferLogging";
+
 	// Configuration values
 	private boolean specifyStableMasterId = false;
 	private int stableMasterId = 20001;
@@ -99,6 +101,8 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	private int exchangeAnimalCostIrons = 1234;
 	private boolean enableNoNpcExchange = false;
 	private boolean enableSmallBoatsLoad = false;
+	private boolean enableServerTransfer = true;
+	private boolean enableServerTransferLogging = true;
 	
 	// Internal
 	private StableMaster stableMasterBuilder = null;
@@ -173,6 +177,16 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 			this.enableSmallBoatsLoad = Boolean.parseBoolean(properties.getProperty(CONFIG_ENABLE_SMALL_BOATS_LOAD, 
 				String.valueOf(this.enableSmallBoatsLoad)));
 			logger.log(Level.INFO, CONFIG_ENABLE_SMALL_BOATS_LOAD + ": " + this.enableSmallBoatsLoad);
+			
+			// Whether or not to enable transferring between servers.
+			this.enableServerTransfer = Boolean.parseBoolean(properties.getProperty(CONFIG_ENABLE_SERVER_TRANSFER, 
+				String.valueOf(this.enableServerTransfer)));
+			logger.log(Level.INFO, CONFIG_ENABLE_SERVER_TRANSFER + ": " + this.enableServerTransfer);
+			
+			// Whether or not to enable more detailed logging for transferring between servers.
+			this.enableServerTransferLogging = Boolean.parseBoolean(properties.getProperty(CONFIG_ENABLE_SERVER_TRANSFER_LOGGING, 
+				String.valueOf(this.enableServerTransferLogging)));
+			logger.log(Level.INFO, CONFIG_ENABLE_SERVER_TRANSFER_LOGGING + ": " + this.enableServerTransferLogging);
 		} catch (NumberFormatException e)
 		{
 			logger.log(Level.WARNING, "Failed to parse one of the configuration values. " + e.getMessage(), e);
@@ -193,243 +207,21 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 		stableMasterBuilder = new StableMaster(specifyStableMasterId, stableMasterId);
 		ModCreatures.addCreature(stableMasterBuilder);
 		
-		// Add hooks for server transfer.
-		try
+		if (this.enableServerTransfer)
 		{
-			// void com.wurmonline.server.intra.PlayerTransfer.sendItem(final Item item, final DataOutputStream dos, final boolean dragged) throws UnsupportedEncodingException, IOException
-			ClassPool classPool = HookManager.getInstance().getClassPool();
-			String descriptor;
-			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
-					classPool.get("com.wurmonline.server.items.Item"), 
-					classPool.get("java.io.DataOutputStream"),
-					CtClass.booleanType
-			});
-
-			HookManager.getInstance().registerHook("com.wurmonline.server.intra.PlayerTransfer", "sendItem", 
-				descriptor, new InvocationHandlerFactory()
-                    {
-                        @Override
-                        public InvocationHandler createInvocationHandler()
-                        {
-                            return new InvocationHandler()
-                            {
-                                @Override
-                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
-                                {
-                                	try
-                                	{
-	                                	// Get arguments
-	                                	Item toSend = (Item) args[0];
-	                                	DataOutputStream outputStream = (DataOutputStream) args[1];
-	                                	
-	                                	// Call base version.
-	                                	method.invoke(proxy, args);
-	                                	
-	                                	// Tack on a boolean specify whether or not this is an animal token 
-	                                	// and if true add all the associated animal data.
-	                                	if (toSend.getTemplateId() == animalTokenId)
-	                                	{
-	                                		outputStream.writeBoolean(true);
-	                                		long animalId = toSend.getData();
-	                                		Creature animal = Creatures.getInstance().getCreature(animalId);
-	                                		CreatureHelper.toStream(animal, outputStream);
-	                                	}
-	                                	else
-	                                	{
-	                                		outputStream.writeBoolean(false);
-	                                	}
-                                	} catch (IOException e)
-                                	{
-                            			logException("Failed to encode animal token.", e);
-                                        throw new RuntimeException(e);
-                                	}
-                                	return null;
-                                }
-                            };
-                        }
-                    });
-			// END - void com.wurmonline.server.intra.PlayerTransfer.sendItem(final Item item, final DataOutputStream dos, final boolean dragged) throws UnsupportedEncodingException, IOException
-			
-			// void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
-			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
-					classPool.get("java.io.DataInputStream"),
-					CtClass.floatType, CtClass.floatType, CtClass.floatType,
-					classPool.get("java.util.Set"), 
-					CtClass.booleanType
-			});
-
-			HookManager.getInstance().registerHook("com.wurmonline.server.intra.IntraServerConnection", "createItem", 
-				descriptor, new InvocationHandlerFactory()
-                    {
-                        @Override
-                        public InvocationHandler createInvocationHandler()
-                        {
-                            return new InvocationHandler()
-                            {
-                                @Override
-                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
-                                {
-                                	try
-                                	{
-	                                	// Get some arguments
-                                		DataInputStream inputStream = (DataInputStream) args[0];
-                                		float posx = (float) args[1];
-                                		float posy = (float) args[2];
-                                		float posz = (float) args[3];
-                                		@SuppressWarnings("unchecked")
-										Set<ItemMetaData> createdItems = ((Set<ItemMetaData>) args[4]);
-	                                	boolean frozen = (boolean) args[5];
-	                                	
-	                                	// Call base version.
-	                                	method.invoke(proxy, args);
-	                                	
-	                                	// Check the boolean we tacked on specifying whether or not this is an 
-	                                	// animal token and if true unpack the associated animal data.
-	                                	boolean isAnimalToken = inputStream.readBoolean();
-	                                	if (isAnimalToken)
-	                                	{
-	                                		CreatureHelper.fromStream(inputStream, posx, posy, posz, createdItems, frozen);
-	                                	}
-                                	} catch (IOException e)
-                                	{
-                            			logException("Failed to decode animal token.", e);
-                                        throw new RuntimeException(e);
-                                	}
-                                	return null;
-                                }
-                            };
-                        }
-                    });
-			// END - void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
-
-			// String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, 
-			//	int, int, int, int, float)
-			descriptor = Descriptor.ofMethod(classPool.get("java.lang.String"), new CtClass[] {
-					classPool.get("byte[]"), classPool.get("byte[]"), CtClass.longType, CtClass.longType, 
-					CtClass.intType, CtClass.intType, CtClass.intType, CtClass.intType, CtClass.floatType });
-			
-			HookManager.getInstance().registerHook("com.wurmonline.server.LoginServerWebConnection", "sendVehicle", 
-				descriptor, new InvocationHandlerFactory()
-                    {
-                        @Override
-                        public InvocationHandler createInvocationHandler()
-                        {
-                            return new InvocationHandler()
-                            {
-                                @Override
-                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
-                                {
-                                	String result = "Failed - Unknown";
-                                	try
-                                	{
-	                                	// Get the vehicle.
-	                                	long vehicleId = (long) args[3];
-	                                	Item vehicle = Items.getItem(vehicleId);
-	                                	
-	                                	// Get all items on the vehicle and look for animal tokens
-	                                	// For each animal token get the Creature (animal) and add to a list.
-	                                	Item[] allItems = vehicle.getAllItems(true);
-	                                	Set<Creature> allAnimals = new HashSet<Creature>();
-	                                	Creatures allCreatures = Creatures.getInstance();
-	                                	for (Item curItem : allItems)
-	                                	{
-	                                		if (curItem.getTemplateId() == animalTokenId)
-	                                		{
-	                                			// Get animal associated with this token.
-	                                			Creature animal = allCreatures.getCreature(curItem.getData());
-	                                			allAnimals.add(animal);
-	                                		}
-	                                	}
-	                                	
-	                                	// Call base version.
-	                                	result = (String) method.invoke(proxy, args);
-	                                	
-	                                	// If the transfer succeeded then destroy all the animals associated
-	                                	// with the animal tokens that were just transfered.
-	                                	if (result.equals(""))
-	                                	{
-	                                		for (Creature curAnimal : allAnimals)
-	                                		{
-	                                			MethodsCreatures.destroyCreature(curAnimal);
-	                                		}
-	                                	}
-	                                	
-                                	} catch (NoSuchItemException e)
-                                	{
-                            			logException("\tFailed to get the vehicle item.", e);
-                                        throw new RuntimeException(e);
-                                	} catch (NoSuchCreatureException e)
-                                	{
-                                		logException("\tFailed to get an animal.", e);
-                                	}
-                                	return result;
-                                }
-                            };
-                        }
-                    });
-			// END - String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, int, int, int, int, float)
-
-			// void com.wurmonline.server.creatures.Communicator.sendReconnect(final String ip, 
-			//		final int port, final String session)
-			descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
-					classPool.get("java.lang.String"), CtClass.intType, classPool.get("java.lang.String") });
-			
-			HookManager.getInstance().registerHook("com.wurmonline.server.creatures.Communicator", "sendReconnect", 
-				descriptor, new InvocationHandlerFactory()
-                    {
-                        @Override
-                        public InvocationHandler createInvocationHandler()
-                        {
-                            return new InvocationHandler()
-                            {
-                                @Override
-                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
-                                {
-                                	// Get the Player.
-                                	Communicator comm = (Communicator) proxy;
-                                	Player thePlayer = (Player) comm.player;
-                                	
-                                	// Check if the player is transferring and not switching to/from epic.
-                                	if (playersTransferringNotSwitchingType.contains(thePlayer.getWurmId()))
-                                	{
-                                    	// Get all the player items.
-                                    	Item[] playerItems = thePlayer.getAllItems();
-                                    	
-                                    	// Go through all the items looking for tokens
-                                    	Creatures allCreatures = Creatures.getInstance();
-                                    	for (Item curItem : playerItems)
-                                    	{
-                                        	// If it's an animal token get the associated animal
-                                    		if (curItem.getTemplateId() == animalTokenId)
-                                    		{
-           	                                	Creature animal = null;
-           	                                	try
-           	                                	{
-           	                                		// Get animal associated with this token.
-                                        			animal = allCreatures.getCreature(curItem.getData());
-           	                                	} catch (NoSuchCreatureException e)
-           	                                	{
-           	                                		logger.log(Level.WARNING, "Failed to get animal associated with animal token. " + e.getMessage(), e);
-           	                                	}
-
-                                    			MethodsCreatures.destroyCreature(animal);
-                                    		}
-                                    	}
-                                	}
-                                	
-                                	// Call base version.
-                                	return method.invoke(proxy, args);
-                                	
-                                }
-                            };
-                        }
-                    });
-			// END - void com.wurmonline.server.creatures.Communicator.sendReconnect(final String ip, final int port, final String session)
-
-			// boolean com.wurmonline.server.intra.PlayerTransfer.poll()
-			descriptor = Descriptor.ofMethod(CtClass.booleanType, new CtClass[] {});
-			
-			HookManager.getInstance().registerHook("com.wurmonline.server.intra.PlayerTransfer", "poll", 
+			// Add hooks for server transfer.
+			try
+			{
+				// void com.wurmonline.server.intra.PlayerTransfer.sendItem(final Item item, final DataOutputStream dos, final boolean dragged) throws UnsupportedEncodingException, IOException
+				ClassPool classPool = HookManager.getInstance().getClassPool();
+				String descriptor;
+				descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+						classPool.get("com.wurmonline.server.items.Item"), 
+						classPool.get("java.io.DataOutputStream"),
+						CtClass.booleanType
+				});
+	
+				HookManager.getInstance().registerHook("com.wurmonline.server.intra.PlayerTransfer", "sendItem", 
 					descriptor, new InvocationHandlerFactory()
 	                    {
 	                        @Override
@@ -440,49 +232,306 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 	                                @Override
 	                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
 	                                {
-	                                	// Call base version.
-	                                	boolean doneTransfer = (boolean) method.invoke(proxy, args);
-	                                	
 	                                	try
 	                                	{
-		                                	// Get the player and whether or not they're transferring to/from epic.
-		                                	Player thePlayer = ReflectionUtil.getPrivateField(proxy, 
-		                                			ReflectionUtil.getField(PlayerTransfer.class, "player"));
-		                                	boolean toOrFromEpic = ReflectionUtil.getPrivateField(proxy, 
-		                                			ReflectionUtil.getField(PlayerTransfer.class, "toOrFromEpic"));
+		                                	// Get arguments
+		                                	Item toSend = (Item) args[0];
+		                                	DataOutputStream outputStream = (DataOutputStream) args[1];
 		                                	
-		                                	if (doneTransfer && !toOrFromEpic)
+		                                	// Call base version.
+		                                	method.invoke(proxy, args);
+		                                	
+		                                	// Tack on a boolean specify whether or not this is an animal token 
+		                                	// and if true add all the associated animal data.
+		                                	if (toSend.getTemplateId() == animalTokenId)
 		                                	{
-			                        			// If done and we previously added them then remove them from 
-		                                		// the list because they have presumably either transferred or 
-		                                		// failed.
-		                                		playersTransferringNotSwitchingType.remove(thePlayer.getWurmId());
+		                                		outputStream.writeBoolean(true);
+		                                		long animalId = toSend.getData();
+		                                		Creature animal = Creatures.getInstance().getCreature(animalId);
+		                                		CreatureHelper.toStream(animal, outputStream, enableServerTransferLogging);
 		                                	}
-		                                	else if (!toOrFromEpic && !playersTransferringNotSwitchingType.contains(
-		                                			thePlayer.getWurmId()))
+		                                	else
 		                                	{
-			                        			// If player is not switching to or from epic and they're not 
-		                                		// in the list and this isn't done add them to the list of 
-		                                		// players we track to wipe their animal tokens if they end up 
-			                        			// transferring (sendReconnect)
-		                                		playersTransferringNotSwitchingType.add(thePlayer.getWurmId());
+		                                		outputStream.writeBoolean(false);
 		                                	}
-	                                	} catch (NoSuchFieldException e)
+	                                	} catch (IOException e)
 	                                	{
-	                                		logger.log(Level.WARNING, "Unable to get private fields for PlayerTransfer class :" + e.getMessage(), e);
+	                            			logException("Failed to encode animal token.", e);
+	                                        throw new RuntimeException(e);
 	                                	}
-	                                	
-	                                	return doneTransfer;
+	                                	return null;
 	                                }
 	                            };
 	                        }
-	                    });			
-			// END - boolean com.wurmonline.server.intra.PlayerTransfer.poll()
-			
-		} catch (NotFoundException e)
-		{
-            logException("Failed to create hooks for " + StableMasterMod.class.getName(), e);
-            throw new HookException(e);
+	                    });
+				// END - void com.wurmonline.server.intra.PlayerTransfer.sendItem(final Item item, final DataOutputStream dos, final boolean dragged) throws UnsupportedEncodingException, IOException
+				
+				// void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
+				descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+						classPool.get("java.io.DataInputStream"),
+						CtClass.floatType, CtClass.floatType, CtClass.floatType,
+						classPool.get("java.util.Set"), 
+						CtClass.booleanType
+				});
+	
+				HookManager.getInstance().registerHook("com.wurmonline.server.intra.IntraServerConnection", "createItem", 
+					descriptor, new InvocationHandlerFactory()
+	                    {
+	                        @Override
+	                        public InvocationHandler createInvocationHandler()
+	                        {
+	                            return new InvocationHandler()
+	                            {
+	                                @Override
+	                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+	                                {
+	                                	try
+	                                	{
+		                                	// Get some arguments
+	                                		DataInputStream inputStream = (DataInputStream) args[0];
+	                                		float posx = (float) args[1];
+	                                		float posy = (float) args[2];
+	                                		float posz = (float) args[3];
+	                                		@SuppressWarnings("unchecked")
+											Set<ItemMetaData> createdItems = ((Set<ItemMetaData>) args[4]);
+		                                	boolean frozen = (boolean) args[5];
+		                                	
+		                                	// Call base version.
+		                                	method.invoke(proxy, args);
+		                                	
+		                                	// Check the boolean we tacked on specifying whether or not this is an 
+		                                	// animal token and if true unpack the associated animal data.
+		                                	boolean isAnimalToken = inputStream.readBoolean();
+		                                	if (isAnimalToken)
+		                                	{
+		                                		CreatureHelper.fromStream(inputStream, posx, posy, posz, createdItems, frozen, enableServerTransferLogging);
+		                                	}
+	                                	} catch (IOException e)
+	                                	{
+	                            			logException("Failed to decode animal token.", e);
+	                                        throw new RuntimeException(e);
+	                                	}
+	                                	return null;
+	                                }
+	                            };
+	                        }
+	                    });
+				// END - void com.wurmonline.server.intra.IntraServerConnection.createItem(final DataInputStream dis, final float posx, final float posy, final float posz, final Set<ItemMetaData> metadataset, final boolean frozen) throws IOException
+	
+				// String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, 
+				//	int, int, int, int, float)
+				descriptor = Descriptor.ofMethod(classPool.get("java.lang.String"), new CtClass[] {
+						classPool.get("byte[]"), classPool.get("byte[]"), CtClass.longType, CtClass.longType, 
+						CtClass.intType, CtClass.intType, CtClass.intType, CtClass.intType, CtClass.floatType });
+				
+				HookManager.getInstance().registerHook("com.wurmonline.server.LoginServerWebConnection", "sendVehicle", 
+					descriptor, new InvocationHandlerFactory()
+	                    {
+	                        @Override
+	                        public InvocationHandler createInvocationHandler()
+	                        {
+	                            return new InvocationHandler()
+	                            {
+	                                @Override
+	                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+	                                {
+	                                	String result = "Failed - Unknown";
+	                                	try
+	                                	{
+		                                	// Get the vehicle.
+		                                	long vehicleId = (long) args[3];
+		                                	Item vehicle = Items.getItem(vehicleId);
+		                                	
+		                                	// Get all items on the vehicle and look for animal tokens
+		                                	// For each animal token get the Creature (animal) and add to a list.
+		                                	Item[] allItems = vehicle.getAllItems(true);
+		                                	Set<Creature> allAnimals = new HashSet<Creature>();
+		                                	Creatures allCreatures = Creatures.getInstance();
+		                                	for (Item curItem : allItems)
+		                                	{
+		                                		if (curItem.getTemplateId() == animalTokenId)
+		                                		{
+		                                			// Get animal associated with this token.
+		                                			Creature animal = allCreatures.getCreature(curItem.getData());
+		                                			allAnimals.add(animal);
+		                                			if (enableServerTransferLogging)
+		                                			{
+		                                				logger.log(Level.INFO, "Found an animal token(" + curItem.getName() + 
+		                                						") referring to an animal(" + animal.getName() + 
+		                                						") on a vehicle being transferred to another server.");
+		                                			}
+		                                		}
+		                                	}
+		                                	
+		                                	// Call base version.
+		                                	result = (String) method.invoke(proxy, args);
+		                                	
+		                                	// If the transfer succeeded then destroy all the animals associated
+		                                	// with the animal tokens that were just transfered.
+		                                	if (result.equals(""))
+		                                	{
+		                                		for (Creature curAnimal : allAnimals)
+		                                		{
+		                                			if (enableServerTransferLogging)
+		                                			{
+		                                				logger.log(Level.INFO, "Deleting animal(" + curAnimal.getName() + 
+		                                						") associated with animal token that transferred on a vehicle.");
+		                                			}
+		                                			MethodsCreatures.destroyCreature(curAnimal);
+		                                		}
+		                                	}
+		                                	
+	                                	} catch (NoSuchItemException e)
+	                                	{
+	                            			logException("\tFailed to get the vehicle item.", e);
+	                                        throw new RuntimeException(e);
+	                                	} catch (NoSuchCreatureException e)
+	                                	{
+	                                		logException("\tFailed to get an animal.", e);
+	                                	}
+	                                	return result;
+	                                }
+	                            };
+	                        }
+	                    });
+				// END - String com.wurmonline.server.LoginServerWebConnection.sendVehicle(byte[], byte[], long, long, int, int, int, int, float)
+	
+				// void com.wurmonline.server.creatures.Communicator.sendReconnect(final String ip, 
+				//		final int port, final String session)
+				descriptor = Descriptor.ofMethod(CtClass.voidType, new CtClass[] {
+						classPool.get("java.lang.String"), CtClass.intType, classPool.get("java.lang.String") });
+				
+				HookManager.getInstance().registerHook("com.wurmonline.server.creatures.Communicator", "sendReconnect", 
+					descriptor, new InvocationHandlerFactory()
+	                    {
+	                        @Override
+	                        public InvocationHandler createInvocationHandler()
+	                        {
+	                            return new InvocationHandler()
+	                            {
+	                                @Override
+	                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+	                                {
+	                                	// Get the Player.
+	                                	Communicator comm = (Communicator) proxy;
+	                                	Player thePlayer = (Player) comm.player;
+	                                	
+                            			if (enableServerTransferLogging)
+                            			{
+                            				logger.log(Level.INFO, "It appears player(" + thePlayer.getName() + 
+                            						") successfully transferred to another server.");
+                            			}
+
+                            			// Check if the player is transferring and not switching to/from epic.
+	                                	if (playersTransferringNotSwitchingType.contains(thePlayer.getWurmId()))
+	                                	{
+	                                    	// Get all the player items.
+	                                    	Item[] playerItems = thePlayer.getAllItems();
+	                                    	
+	                                    	// Go through all the items looking for tokens
+	                                    	Creatures allCreatures = Creatures.getInstance();
+	                                    	for (Item curItem : playerItems)
+	                                    	{
+	                                        	// If it's an animal token get the associated animal
+	                                    		if (curItem.getTemplateId() == animalTokenId)
+	                                    		{
+	           	                                	Creature animal = null;
+	           	                                	try
+	           	                                	{
+	           	                                		// Get animal associated with this token.
+	                                        			animal = allCreatures.getCreature(curItem.getData());
+	           	                                	} catch (NoSuchCreatureException e)
+	           	                                	{
+	           	                                		logger.log(Level.WARNING, "Failed to get animal associated with animal token. " + e.getMessage(), e);
+	           	                                	}
+		                                			if (enableServerTransferLogging)
+		                                			{
+		                                				logger.log(Level.INFO, "Found an animal token(" + curItem.getName() + 
+		                                						") referring to an animal(" + animal.getName() + 
+		                                						") in a player's inventory being transferred to another server of the same type. Animal is being deleted.");
+		                                			}
+	                                    			MethodsCreatures.destroyCreature(animal);
+	                                    		}
+	                                    	}
+	                                	}
+	                                	
+	                                	// Call base version.
+	                                	return method.invoke(proxy, args);
+	                                	
+	                                }
+	                            };
+	                        }
+	                    });
+				// END - void com.wurmonline.server.creatures.Communicator.sendReconnect(final String ip, final int port, final String session)
+	
+				// boolean com.wurmonline.server.intra.PlayerTransfer.poll()
+				descriptor = Descriptor.ofMethod(CtClass.booleanType, new CtClass[] {});
+				
+				HookManager.getInstance().registerHook("com.wurmonline.server.intra.PlayerTransfer", "poll", 
+						descriptor, new InvocationHandlerFactory()
+		                    {
+		                        @Override
+		                        public InvocationHandler createInvocationHandler()
+		                        {
+		                            return new InvocationHandler()
+		                            {
+		                                @Override
+		                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+		                                {
+		                                	// Call base version.
+		                                	boolean doneTransfer = (boolean) method.invoke(proxy, args);
+		                                	
+		                                	try
+		                                	{
+			                                	// Get the player and whether or not they're transferring to/from epic.
+			                                	Player thePlayer = ReflectionUtil.getPrivateField(proxy, 
+			                                			ReflectionUtil.getField(PlayerTransfer.class, "player"));
+			                                	boolean toOrFromEpic = ReflectionUtil.getPrivateField(proxy, 
+			                                			ReflectionUtil.getField(PlayerTransfer.class, "toOrFromEpic"));
+			                                	
+			                                	if (doneTransfer && !toOrFromEpic)
+			                                	{
+				                        			// If done and we previously added them then remove them from 
+			                                		// the list because they have presumably either transferred or 
+			                                		// failed.
+			                                		playersTransferringNotSwitchingType.remove(thePlayer.getWurmId());
+		                                			if (enableServerTransferLogging)
+		                                			{
+		                                				logger.log(Level.INFO, "Player(" + thePlayer.getName() + 
+		                                						") is either done being transferred to another server of the same type or is transferring between servers of different types.");
+		                                			}
+			                                	}
+			                                	else if (!toOrFromEpic && !playersTransferringNotSwitchingType.contains(
+			                                			thePlayer.getWurmId()))
+			                                	{
+				                        			// If player is not switching to or from epic and they're not 
+			                                		// in the list and this isn't done add them to the list of 
+			                                		// players we track to wipe their animal tokens if they end up 
+				                        			// transferring (sendReconnect)
+			                                		playersTransferringNotSwitchingType.add(thePlayer.getWurmId());
+		                                			if (enableServerTransferLogging)
+		                                			{
+		                                				logger.log(Level.INFO, "Found a player(" + thePlayer.getName() + 
+		                                						") being transferred to another server of the same type.");
+		                                			}
+			                                	}
+		                                	} catch (NoSuchFieldException e)
+		                                	{
+		                                		logger.log(Level.WARNING, "Unable to get private fields for PlayerTransfer class :" + e.getMessage(), e);
+		                                	}
+		                                	
+		                                	return doneTransfer;
+		                                }
+		                            };
+		                        }
+		                    });			
+				// END - boolean com.wurmonline.server.intra.PlayerTransfer.poll()
+				
+			} catch (NotFoundException e)
+			{
+	            logException("Failed to create hooks for " + StableMasterMod.class.getName(), e);
+	            throw new HookException(e);
+			}
 		}
 	}
 
@@ -499,13 +548,27 @@ public class StableMasterMod implements WurmServerMod, Configurable, Initable, P
 
 		try
 		{
-			short [] animalTokenItemTypes = new short[] 
-				{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
-					ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
-					ITEM_TYPE_FLOATING, ITEM_TYPE_NAMED,
-					ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, 
-					ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
-				};
+			short [] animalTokenItemTypes = null;
+			if (this.enableServerTransfer)
+			{
+				animalTokenItemTypes = new short[] 
+					{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
+						ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
+						ITEM_TYPE_FLOATING, ITEM_TYPE_NAMED,
+						ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, 
+						ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
+					};
+			}
+			else
+			{
+				animalTokenItemTypes = new short[] 
+						{ ITEM_TYPE_LEATHER, ITEM_TYPE_MEAT, ITEM_TYPE_NOTAKE, ITEM_TYPE_INDESTRUCTIBLE,
+							ITEM_TYPE_NODROP, ITEM_TYPE_FULLPRICE, ITEM_TYPE_HASDATA, ITEM_TYPE_NORENAME,
+							ITEM_TYPE_FLOATING, ITEM_TYPE_NAMED, ITEM_TYPE_SERVERBOUND,
+							ITEM_TYPE_NOBANK, ITEM_TYPE_MISSION, ITEM_TYPE_NODISCARD, 
+							ITEM_TYPE_NEVER_SHOW_CREATION_WINDOW_OPTION, ITEM_TYPE_NO_IMPROVE
+						};
+			}
 			ItemTemplateFactory.getInstance().createItemTemplate(
 					animalTokenId, ANIMAL_TOKEN_SIZE, 
 					"animal token", "animal tokens", 

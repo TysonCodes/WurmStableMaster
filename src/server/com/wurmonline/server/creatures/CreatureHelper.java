@@ -254,8 +254,13 @@ public class CreatureHelper
 	}
 	
 	// Send the minimum data associated with a creature to 'outputStream'.
-	public static void toStream(Creature animal, DataOutputStream outputStream) throws IOException
+	public static void toStream(Creature animal, DataOutputStream outputStream, boolean enableServerTransferLogging) throws IOException
 	{
+		if (enableServerTransferLogging)
+		{
+			logger.log(Level.INFO, "Sending an animal(" + animal.getName() + ") to another server.");
+		}
+		
 		// Send Offspring data.
 		Offspring baby = animal.getOffspring();
 		if (baby != null)
@@ -339,18 +344,36 @@ public class CreatureHelper
 		
 		// Write the values to the output stream.
 		outputStream.writeInt(numItems);
+		if (enableServerTransferLogging)
+		{
+			logger.log(Level.INFO, "\tAnimal had " + numItems + " items that are not body parts or their base inventory item.");
+		}
 		for (Item curItem : animalItems)
 		{
 			if (!curItem.isBodyPart() && !curItem.isInventory())
 			{
+				if (enableServerTransferLogging)
+				{
+					logger.log(Level.INFO, "\t\tSending item(" + curItem.getName() + ") for animal(" + animal.getName() + ").");
+				}
 				PlayerTransfer.sendItem(curItem, outputStream, false);
 			}
+		}
+
+		if (enableServerTransferLogging)
+		{
+			logger.log(Level.INFO, "Finished sending animal(" + animal.getName() + ").");
 		}
     }
 
 	public static void fromStream(DataInputStream inputStream, float posx, float posy, float posz,
-			Set<ItemMetaData> createdItems, boolean frozen) throws IOException
+			Set<ItemMetaData> createdItems, boolean frozen, boolean enableServerTransferLogging) throws IOException
 	{
+		if (enableServerTransferLogging)
+		{
+			logger.log(Level.INFO, "Receiving an animal from another server.");
+		}
+		
         Connection dbcon = null;
         PreparedStatement ps = null;
 
@@ -372,6 +395,10 @@ public class CreatureHelper
 		{
 			animal = new Creature(creatureId);
 			animal.setName(inputStream.readUTF());
+			if (enableServerTransferLogging)
+			{
+				logger.log(Level.INFO, "\tAnimal is named(" + animal.name + ").");
+			}
 			animal.getStatus().template = CreatureTemplateFactory.getInstance().getTemplate(inputStream.readUTF());
 			animal.template = animal.getStatus().template;
 			animal.getStatus().setSex(inputStream.readByte());
@@ -586,14 +613,32 @@ public class CreatureHelper
 		
 		// Process creature items.
 		int numItems = inputStream.readInt();
+		if (enableServerTransferLogging)
+		{
+			logger.log(Level.INFO, "\tAnimal had " + numItems + " items.");
+		}
 		for (int curItem = 0; curItem < numItems; curItem++)
 		{
 			IntraServerConnection.createItem(inputStream, posx, posy, posz, createdItems, frozen);
+			if (enableServerTransferLogging)
+			{
+				logger.log(Level.INFO, "\t\tProcessed an item for animal(" + animal.getName() + ").");
+			}
 		}
 		
 		// Load items for creature.
 		// After 'createItem' finishes the item is in the DB. Load it and use it.
-		Items.loadAllItemsForCreature(animal, animal.getStatus().getInventoryId());
+		Set<Item> animalItems = Items.loadAllItemsForCreature(animal, animal.getStatus().getInventoryId());
+
+		if (enableServerTransferLogging)
+		{
+			logger.log(Level.INFO, "\tLoad all items from the database for animal(" + animal.getName() + ").");
+			for(Item curItem : animalItems)
+			{
+				logger.log(Level.INFO, "\t\tLoaded " + curItem.getName());
+			}
+			logger.log(Level.INFO, "Finished receiving animal(" + animal.getName() + ").");
+		}
 	}
 
 	// Helpers to work with private methods/fields.
